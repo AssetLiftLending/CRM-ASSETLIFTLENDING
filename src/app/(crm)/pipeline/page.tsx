@@ -8,7 +8,8 @@ export default async function PipelinePage() {
     .from('deals')
     .select(`
       id, title, stage, loan_program, loan_amount, purchase_price, arv,
-      property_address, property_state, created_at, updated_at,
+      after_repair_value, rehab_amount, credit_score, experience_level,
+      under_contract, property_address, property_state, created_at, updated_at,
       contacts(id, first_name, last_name, phone, email),
       profiles:assigned_to(id, full_name)
     `)

@@ -52,6 +52,10 @@ export default function DealDetailClient({ deal, docs, tasks }: Props) {
     after_repair_value: deal.after_repair_value ?? '',
     credit_score:   deal.credit_score ?? '',
     experience:     deal.experience_level ?? '',
+    under_contract: Boolean(deal.under_contract),
+    occupancy:      deal.occupancy ?? '',
+    exit_strategy:  deal.exit_strategy ?? '',
+    close_date_target: deal.close_date_target ?? '',
     title_company:  deal.title_company_contact ?? '',
     insurance_agent: deal.insurance_agent_contact ?? '',
     notes:          deal.notes ?? '',
@@ -78,6 +82,11 @@ export default function DealDetailClient({ deal, docs, tasks }: Props) {
         after_repair_value: form.after_repair_value ? Number(form.after_repair_value) : null,
         credit_score:   form.credit_score ? Number(form.credit_score) : null,
         experience_level: form.experience || null,
+        experience: form.experience || null,
+        under_contract: form.under_contract,
+        occupancy: form.occupancy || null,
+        exit_strategy: form.exit_strategy || null,
+        close_date_target: form.close_date_target || null,
         title_company_contact: form.title_company || null,
         insurance_agent_contact: form.insurance_agent || null,
         notes: form.notes || null,
@@ -205,6 +214,42 @@ export default function DealDetailClient({ deal, docs, tasks }: Props) {
               className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gold-500"
               placeholder="123 Main St, City, State 00000" />
           </div>
+
+          <div>
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 block">Target Close Date</label>
+            <input type="date" value={form.close_date_target} onChange={e => setForm(p => ({ ...p, close_date_target: e.target.value }))}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gold-500" />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 block">Occupancy</label>
+            <select value={form.occupancy} onChange={e => setForm(p => ({ ...p, occupancy: e.target.value }))}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gold-500">
+              <option value="">Select occupancy</option>
+              <option value="vacant">Vacant</option>
+              <option value="tenant_occupied">Tenant occupied</option>
+              <option value="owner_occupied">Owner occupied</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 block">Exit Strategy</label>
+            <select value={form.exit_strategy} onChange={e => setForm(p => ({ ...p, exit_strategy: e.target.value }))}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gold-500">
+              <option value="">Select exit</option>
+              <option value="sell">Sell</option>
+              <option value="refinance">Refinance</option>
+              <option value="rent_hold">Rent and hold</option>
+              <option value="construction_sale">Construction sale</option>
+            </select>
+          </div>
+
+          <label className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700">
+            <input type="checkbox" checked={form.under_contract}
+              onChange={e => setForm(p => ({ ...p, under_contract: e.target.checked }))}
+              className="h-4 w-4 rounded border-gray-300 text-gold-500 focus:ring-gold-500" />
+            Under contract
+          </label>
 
           <div>
             <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 block">Title Company Contact</label>

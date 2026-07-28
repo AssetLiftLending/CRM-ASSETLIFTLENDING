@@ -7,13 +7,26 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const supabase = createAdminClient()
+    const toNumber = (value: unknown) => {
+      if (value === null || value === undefined || value === '') return null
+      const parsed = Number(String(value).replace(/[^0-9.-]/g, ''))
+      return Number.isFinite(parsed) ? parsed : null
+    }
+
+    const fullName = String(body.name || '').trim()
+    const [fallbackFirst, ...fallbackLastParts] = fullName.split(/\s+/).filter(Boolean)
+    const firstName = String(body.first_name || fallbackFirst || '').trim()
+    const lastName = String(body.last_name || fallbackLastParts.join(' ') || 'Unknown').trim()
+    const afterRepairValue = toNumber(body.after_repair_value ?? body.arv)
+    const experienceLevel = body.experience_level || body.experience || null
+    const propertyAddress = body.property_address || body.address || null
 
     // Create contact
     const { data: contact, error: contactError } = await supabase
       .from('contacts')
       .insert({
-        first_name:   body.first_name,
-        last_name:    body.last_name,
+        first_name:   firstName,
+        last_name:    lastName,
         email:        body.email || null,
         phone:        body.phone || null,
         cell_phone:   body.cell_phone || null,
@@ -25,25 +38,51 @@ export async function POST(req: NextRequest) {
         lead_source:  body.lead_source || 'direct',
         assigned_to:  body.assigned_to || null,
         lead_source_detail: body.lead_source_detail || null,
+        credit_score: toNumber(body.credit_score),
+        experience_count: toNumber(body.experience_count) ?? 0,
+        entity_name: body.entity_name || null,
+        entity_type: body.entity_type || null,
+        stage: 'new_inquiry',
       })
       .select()
       .single()
 
     if (contactError) throw contactError
 
+    let deal = null
+
     // Create deal if requested
     if (body.create_deal !== false) {
-      await supabase.from('deals').insert({
+      const { data: createdDeal, error: dealError } = await supabase.from('deals').insert({
         contact_id:       contact.id,
         loan_program:     body.loan_program || 'fix_flip',
         stage:            'new_inquiry',
-        property_address: body.property_address || null,
-        purchase_price:   body.purchase_price ? parseInt(body.purchase_price) : null,
-        rehab_amount:     body.rehab_amount   ? parseInt(body.rehab_amount)   : null,
-        loan_amount:      body.loan_amount    ? parseInt(body.loan_amount)    : null,
+        title:            propertyAddress ? `${propertyAddress} - ${body.loan_program || 'Loan'}` : `${firstName} ${lastName} - ${body.loan_program || 'Loan'}`,
+        property_address: propertyAddress,
+        property_city:    body.property_city || body.city || null,
+        property_state:   body.property_state || body.state || null,
+        property_zip:     body.property_zip || body.zip || null,
+        property_type:    body.property_type || null,
+        purchase_price:   toNumber(body.purchase_price),
+        rehab_amount:     toNumber(body.rehab_amount),
+        loan_amount:      toNumber(body.loan_amount),
+        arv:              afterRepairValue,
+        after_repair_value: afterRepairValue,
+        credit_score:     toNumber(body.credit_score),
+        experience:       experienceLevel,
+        experience_level: experienceLevel,
+        under_contract:   Boolean(body.under_contract),
+        exit_strategy:    body.exit_strategy || null,
+        occupancy:        body.occupancy || null,
+        close_date_target: body.close_date_target || null,
+        notes:            body.notes || null,
         lead_source:      body.lead_source || 'direct',
         assigned_to:      body.assigned_to || null,
-      })
+        submitted_by:     body.submitted_by || 'admin',
+      }).select().single()
+
+      if (dealError) throw dealError
+      deal = createdDeal
     }
 
     // Trigger lead_created automations (fire and forget)
@@ -53,10 +92,10 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({ trigger_type: 'lead_created', contact_id: contact.id }),
     }).catch(() => {})
 
-    return NextResponse.json(contact)
+    return NextResponse.json({ ...contact, deal })
   } catch (err) {
     console.error('POST /api/contacts', err)
-    return NextResponse.json({ error: 'Failed' }, { status: 500 })
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed' }, { status: 500 })
   }
 }
 

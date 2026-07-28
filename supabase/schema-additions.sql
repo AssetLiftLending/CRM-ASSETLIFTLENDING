@@ -20,6 +20,13 @@ ALTER TABLE deals
   ADD COLUMN IF NOT EXISTS term_months      INTEGER,           -- e.g. 12
   ADD COLUMN IF NOT EXISTS experience       TEXT,
   ADD COLUMN IF NOT EXISTS experience_level TEXT,
+  ADD COLUMN IF NOT EXISTS after_repair_value BIGINT,
+  ADD COLUMN IF NOT EXISTS credit_score     INTEGER,
+  ADD COLUMN IF NOT EXISTS under_contract   BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS exit_strategy    TEXT,
+  ADD COLUMN IF NOT EXISTS occupancy        TEXT,
+  ADD COLUMN IF NOT EXISTS title_company_contact TEXT,
+  ADD COLUMN IF NOT EXISTS insurance_agent_contact TEXT,
   ADD COLUMN IF NOT EXISTS notes            TEXT,
   ADD COLUMN IF NOT EXISTS terms_set_at     TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS terms_set_by     UUID REFERENCES profiles(id);

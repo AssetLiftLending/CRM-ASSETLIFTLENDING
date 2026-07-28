@@ -71,8 +71,10 @@ export async function POST(req: NextRequest) {
     purchase_price: body.purchase_price ? Number(body.purchase_price) : null,
     rehab_amount: body.rehab_amount ? Number(body.rehab_amount) : null,
     arv: body.arv ? Number(body.arv) : null,
+    after_repair_value: body.arv ? Number(body.arv) : null,
     loan_amount: body.loan_amount ? Number(body.loan_amount) : null,
     experience: body.experience || null,
+    experience_level: body.experience || null,
     notes: body.notes || null,
     stage: 'new_inquiry',
   }).select().single()

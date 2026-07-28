@@ -30,11 +30,19 @@ Complete step-by-step setup from zero to live at **crm.assetliftlending.com**.
    - **anon/public key** → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - **service_role key** → `SUPABASE_SERVICE_ROLE_KEY` (keep secret!)
 
-6. **Create your admin user**: Authentication → Users → Invite User → your email
+6. **Create your admin users**: Authentication → Users → Invite User → each admin email
    - After you sign in, go to SQL Editor and run:
    ```sql
-   UPDATE profiles SET role = 'owner' WHERE email = 'info@assetliftlending.com';
+   UPDATE profiles
+   SET role = 'platform_admin', is_active = true
+   WHERE email = 'info@assetliftlending.com';
+
+   UPDATE profiles
+   SET role = 'organization_admin', is_active = true
+   WHERE email = 'YOUR_ORG_ADMIN_EMAIL_HERE';
    ```
+   - Platform admin can access all organizations.
+   - Organization admin can access all records and uploaded documents inside their organization.
 
 ---
 

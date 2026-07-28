@@ -11,7 +11,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- ENUMS
 -- ============================================================
 
-CREATE TYPE user_role AS ENUM ('owner', 'loan_officer', 'processor', 'marketing', 'read_only');
+CREATE TYPE user_role AS ENUM ('platform_admin', 'organization_admin', 'owner', 'loan_officer', 'processor', 'marketing', 'read_only', 'broker', 'borrower');
 CREATE TYPE lead_stage AS ENUM ('new_inquiry', 'contacted', 'just_searching', 'dead_lead', 'in_progress', 'funded');
 CREATE TYPE loan_program AS ENUM ('fix_flip', 'dscr', 'ground_up', 'commercial', 'multifamily', 'custom');
 CREATE TYPE task_priority AS ENUM ('low', 'medium', 'high', 'urgent');

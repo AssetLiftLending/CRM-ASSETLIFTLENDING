@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     // Verify the contact matches the logged-in user's email
     const { data: contact } = await supabase
       .from('contacts')
-      .select('id')
+      .select('id, organization_id')
       .eq('id', contactId)
       .eq('email', user.email)
       .single()
@@ -31,7 +31,15 @@ export async function POST(req: NextRequest) {
     const bytes  = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
     const ext    = file.name.split('.').pop() ?? 'bin'
-    const path   = `portal/${contactId}/${dealId}/${docType}-${Date.now()}.${ext}`
+    const folderPrefix = `organizations/${contact.organization_id}/contacts/${contactId}`
+    const path   = `${folderPrefix}/${dealId}/${docType}-${Date.now()}.${ext}`
+
+    await supabase.from('document_folders').upsert({
+      organization_id: contact.organization_id,
+      contact_id: contactId,
+      portal_user_id: user.id,
+      storage_prefix: folderPrefix,
+    }, { onConflict: 'organization_id,contact_id' })
 
     const { error: uploadErr } = await supabase.storage
       .from('documents')
@@ -44,13 +52,18 @@ export async function POST(req: NextRequest) {
     const { data, error } = await supabase
       .from('documents')
       .upsert({
+        name:       file.name,
         deal_id:    dealId,
         contact_id: contactId,
         doc_type:   docType,
         file_name:  file.name,
         file_url:   publicUrl,
+        file_size:  file.size,
+        mime_type:  file.type || null,
+        storage_path: path,
         status:     'pending',
         uploaded_by: 'borrower',
+        uploaded_at: new Date().toISOString(),
       }, { onConflict: 'deal_id,doc_type' })
       .select()
       .single()

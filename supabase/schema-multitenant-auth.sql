@@ -6,6 +6,8 @@
 
 ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'broker';
 ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'borrower';
+ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'platform_admin';
+ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'organization_admin';
 
 CREATE TABLE IF NOT EXISTS public.organizations (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -54,6 +56,18 @@ ALTER TABLE public.websites             ADD COLUMN IF NOT EXISTS organization_id
 ALTER TABLE public.seo_audits           ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES public.organizations(id);
 ALTER TABLE public.generated_content    ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES public.organizations(id);
 ALTER TABLE public.tracked_keywords     ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES public.organizations(id);
+
+CREATE TABLE IF NOT EXISTS public.document_folders (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+  contact_id      UUID NOT NULL REFERENCES public.contacts(id) ON DELETE CASCADE,
+  portal_user_id  UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  broker_id       UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  storage_prefix  TEXT NOT NULL,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (organization_id, contact_id)
+);
 
 UPDATE public.profiles
 SET
@@ -113,6 +127,53 @@ CREATE INDEX IF NOT EXISTS idx_websites_org ON public.websites(organization_id);
 CREATE INDEX IF NOT EXISTS idx_seo_audits_org ON public.seo_audits(organization_id);
 CREATE INDEX IF NOT EXISTS idx_generated_content_org ON public.generated_content(organization_id);
 CREATE INDEX IF NOT EXISTS idx_tracked_keywords_org ON public.tracked_keywords(organization_id);
+CREATE INDEX IF NOT EXISTS idx_document_folders_org ON public.document_folders(organization_id);
+CREATE INDEX IF NOT EXISTS idx_document_folders_contact ON public.document_folders(contact_id);
+CREATE INDEX IF NOT EXISTS idx_document_folders_portal_user ON public.document_folders(portal_user_id);
+
+INSERT INTO public.document_folders (organization_id, contact_id, portal_user_id, broker_id, storage_prefix)
+SELECT
+  c.organization_id,
+  c.id,
+  c.portal_user_id,
+  d.broker_id,
+  'organizations/' || c.organization_id || '/contacts/' || c.id
+FROM public.contacts c
+LEFT JOIN LATERAL (
+  SELECT broker_id
+  FROM public.deals
+  WHERE deals.contact_id = c.id AND deals.broker_id IS NOT NULL
+  ORDER BY created_at DESC
+  LIMIT 1
+) d ON TRUE
+WHERE c.organization_id IS NOT NULL
+ON CONFLICT (organization_id, contact_id) DO UPDATE
+SET
+  portal_user_id = COALESCE(EXCLUDED.portal_user_id, document_folders.portal_user_id),
+  broker_id = COALESCE(EXCLUDED.broker_id, document_folders.broker_id),
+  storage_prefix = EXCLUDED.storage_prefix,
+  updated_at = NOW();
+
+CREATE OR REPLACE FUNCTION public.is_platform_admin()
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND role::text = 'platform_admin'
+      AND is_active = TRUE
+  )
+  OR EXISTS (
+    SELECT 1 FROM public.organization_memberships
+    WHERE user_id = auth.uid()
+      AND role::text = 'platform_admin'
+      AND is_active = TRUE
+  )
+$$;
 
 CREATE OR REPLACE FUNCTION public.is_org_member(target_org UUID)
 RETURNS BOOLEAN
@@ -127,6 +188,7 @@ AS $$
       AND organization_id = target_org
       AND is_active = TRUE
   )
+  OR public.is_platform_admin()
 $$;
 
 CREATE OR REPLACE FUNCTION public.is_org_staff(target_org UUID)
@@ -140,9 +202,10 @@ AS $$
     SELECT 1 FROM public.organization_memberships
     WHERE user_id = auth.uid()
       AND organization_id = target_org
-      AND role IN ('owner', 'loan_officer', 'processor', 'marketing')
+      AND role::text IN ('organization_admin', 'owner', 'loan_officer', 'processor', 'marketing')
       AND is_active = TRUE
   )
+  OR public.is_platform_admin()
 $$;
 
 CREATE OR REPLACE FUNCTION public.is_org_owner(target_org UUID)
@@ -156,9 +219,10 @@ AS $$
     SELECT 1 FROM public.organization_memberships
     WHERE user_id = auth.uid()
       AND organization_id = target_org
-      AND role = 'owner'
+      AND role::text IN ('organization_admin', 'owner')
       AND is_active = TRUE
   )
+  OR public.is_platform_admin()
 $$;
 
 CREATE OR REPLACE FUNCTION public.set_default_organization()
@@ -198,10 +262,52 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.ensure_contact_document_folder()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  target_org UUID;
+  target_broker UUID;
+BEGIN
+  target_org := COALESCE(NEW.organization_id, (SELECT id FROM public.organizations WHERE slug = 'asset-lift-lending'));
+
+  SELECT broker_id INTO target_broker
+  FROM public.deals
+  WHERE contact_id = NEW.id AND broker_id IS NOT NULL
+  ORDER BY created_at DESC
+  LIMIT 1;
+
+  INSERT INTO public.document_folders (organization_id, contact_id, portal_user_id, broker_id, storage_prefix)
+  VALUES (
+    target_org,
+    NEW.id,
+    NEW.portal_user_id,
+    target_broker,
+    'organizations/' || target_org || '/contacts/' || NEW.id
+  )
+  ON CONFLICT (organization_id, contact_id) DO UPDATE
+  SET
+    portal_user_id = COALESCE(EXCLUDED.portal_user_id, document_folders.portal_user_id),
+    broker_id = COALESCE(EXCLUDED.broker_id, document_folders.broker_id),
+    storage_prefix = EXCLUDED.storage_prefix,
+    updated_at = NOW();
+
+  RETURN NEW;
+END;
+$$;
+
 DROP TRIGGER IF EXISTS trg_profiles_membership ON public.profiles;
 CREATE TRIGGER trg_profiles_membership
   BEFORE INSERT OR UPDATE ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.sync_profile_membership();
+
+DROP TRIGGER IF EXISTS trg_contacts_document_folder ON public.contacts;
+CREATE TRIGGER trg_contacts_document_folder
+  AFTER INSERT OR UPDATE OF organization_id, portal_user_id ON public.contacts
+  FOR EACH ROW EXECUTE FUNCTION public.ensure_contact_document_folder();
 
 DROP TRIGGER IF EXISTS trg_contacts_org ON public.contacts;
 CREATE TRIGGER trg_contacts_org BEFORE INSERT ON public.contacts
@@ -291,6 +397,7 @@ ALTER TABLE public.websites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.seo_audits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.generated_content ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tracked_keywords ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.document_folders ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS organizations_member_select ON public.organizations;
 CREATE POLICY organizations_member_select ON public.organizations
@@ -334,6 +441,9 @@ DROP POLICY IF EXISTS ad_campaigns_tenant_staff ON public.ad_campaigns;
 DROP POLICY IF EXISTS portal_applications_tenant_staff ON public.portal_applications;
 DROP POLICY IF EXISTS portal_applications_portal_own ON public.portal_applications;
 DROP POLICY IF EXISTS sms_templates_tenant_staff ON public.sms_templates;
+DROP POLICY IF EXISTS document_folders_tenant_staff ON public.document_folders;
+DROP POLICY IF EXISTS document_folders_portal_own ON public.document_folders;
+DROP POLICY IF EXISTS document_folders_broker_own ON public.document_folders;
 
 CREATE POLICY profiles_own ON public.profiles
   FOR SELECT USING (id = auth.uid());
@@ -389,6 +499,16 @@ CREATE POLICY documents_broker_own ON public.documents
   FOR SELECT USING (
     deal_id IN (SELECT id FROM public.deals WHERE broker_id = auth.uid())
   );
+
+CREATE POLICY document_folders_tenant_staff ON public.document_folders
+  FOR ALL USING (public.is_org_staff(organization_id))
+  WITH CHECK (public.is_org_staff(organization_id));
+
+CREATE POLICY document_folders_portal_own ON public.document_folders
+  FOR SELECT USING (portal_user_id = auth.uid());
+
+CREATE POLICY document_folders_broker_own ON public.document_folders
+  FOR SELECT USING (broker_id = auth.uid());
 
 CREATE POLICY broker_clients_tenant_staff ON public.broker_clients
   FOR ALL USING (public.is_org_staff(organization_id))

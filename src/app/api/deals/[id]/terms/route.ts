@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { sendEmail } from '@/lib/sendgrid/client'
 
+const ADMIN_ROLES = ['platform_admin', 'organization_admin', 'owner']
+
 // POST — admin uploads term sheet PDF + sets loan terms
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const supabase = createClient()
@@ -10,7 +12,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const admin = createAdminClient()
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single()
-  if (!profile || profile.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!profile || !ADMIN_ROLES.includes(profile.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const formData = await req.formData()
   const file = formData.get('file') as File | null

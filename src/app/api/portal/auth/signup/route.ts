@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
     email: account.email,
     phone: account.phone || null,
     lead_source: 'portal',
+    portal_user_id: userId,
     stage: 'new_inquiry',
   }).select().single()
 

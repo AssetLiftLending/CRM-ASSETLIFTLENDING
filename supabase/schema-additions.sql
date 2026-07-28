@@ -6,6 +6,8 @@
 -- 1. Add portal roles to the user_role enum
 ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'broker';
 ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'borrower';
+ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'platform_admin';
+ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'organization_admin';
 
 -- 2. Add broker_id to deals (external broker who submitted the deal)
 ALTER TABLE deals
@@ -63,7 +65,7 @@ DROP POLICY IF EXISTS broker_deals_select ON deals;
 CREATE POLICY broker_deals_select ON deals
   FOR SELECT USING (
     auth.uid() IN (
-      SELECT id FROM profiles WHERE role = 'owner'
+      SELECT id FROM profiles WHERE role::text IN ('platform_admin','organization_admin','owner')
     )
     OR broker_id = auth.uid()
     OR contact_id IN (
@@ -74,13 +76,13 @@ CREATE POLICY broker_deals_select ON deals
 DROP POLICY IF EXISTS broker_deals_insert ON deals;
 CREATE POLICY broker_deals_insert ON deals
   FOR INSERT WITH CHECK (
-    auth.uid() IN (SELECT id FROM profiles WHERE role IN ('owner','broker'))
+    auth.uid() IN (SELECT id FROM profiles WHERE role::text IN ('platform_admin','organization_admin','owner','broker'))
   );
 
 DROP POLICY IF EXISTS broker_deals_update ON deals;
 CREATE POLICY broker_deals_update ON deals
   FOR UPDATE USING (
-    auth.uid() IN (SELECT id FROM profiles WHERE role = 'owner')
+    auth.uid() IN (SELECT id FROM profiles WHERE role::text IN ('platform_admin','organization_admin','owner'))
     OR broker_id = auth.uid()
   );
 
@@ -91,14 +93,14 @@ DROP POLICY IF EXISTS broker_clients_select ON broker_clients;
 CREATE POLICY broker_clients_select ON broker_clients
   FOR SELECT USING (
     broker_id = auth.uid()
-    OR auth.uid() IN (SELECT id FROM profiles WHERE role = 'owner')
+    OR auth.uid() IN (SELECT id FROM profiles WHERE role::text IN ('platform_admin','organization_admin','owner'))
   );
 
 DROP POLICY IF EXISTS broker_clients_insert ON broker_clients;
 CREATE POLICY broker_clients_insert ON broker_clients
   FOR INSERT WITH CHECK (
     broker_id = auth.uid()
-    OR auth.uid() IN (SELECT id FROM profiles WHERE role = 'owner')
+    OR auth.uid() IN (SELECT id FROM profiles WHERE role::text IN ('platform_admin','organization_admin','owner'))
   );
 
 -- 7. Approve broker function (called by admin)

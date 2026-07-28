@@ -1,11 +1,11 @@
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 const PUBLIC_PATHS = ['/login', '/portal', '/api/webhooks', '/api/portal']
 
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next()
+  let res = NextResponse.next({ request: req })
   const hasSupabaseEnv = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   )
@@ -14,12 +14,33 @@ export async function middleware(req: NextRequest) {
     return res
   }
 
-  const supabase = createMiddlewareClient({ req, res })
-  const { data: { session } } = await supabase.auth.getSession()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name) {
+          return req.cookies.get(name)?.value
+        },
+        set(name, value, options) {
+          req.cookies.set({ name, value, ...options })
+          res = NextResponse.next({ request: req })
+          res.cookies.set({ name, value, ...options })
+        },
+        remove(name, options) {
+          req.cookies.set({ name, value: '', ...options })
+          res = NextResponse.next({ request: req })
+          res.cookies.set({ name, value: '', ...options })
+        },
+      },
+    }
+  )
+
+  const { data: { user } } = await supabase.auth.getUser()
 
   const isPublic = PUBLIC_PATHS.some((p) => req.nextUrl.pathname.startsWith(p))
 
-  if (!session && !isPublic) {
+  if (!user && !isPublic) {
     return NextResponse.redirect(new URL('/login', req.url))
   }
 

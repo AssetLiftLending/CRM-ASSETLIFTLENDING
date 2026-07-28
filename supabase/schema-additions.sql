@@ -3,8 +3,9 @@
 -- Run this in Supabase SQL Editor AFTER the main schema.sql
 -- ============================================================
 
--- 1. Add 'broker' to the user_role enum
+-- 1. Add portal roles to the user_role enum
 ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'broker';
+ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'borrower';
 
 -- 2. Add broker_id to deals (external broker who submitted the deal)
 ALTER TABLE deals
@@ -15,8 +16,24 @@ ALTER TABLE deals
   ADD COLUMN IF NOT EXISTS points           NUMERIC(4,2),      -- e.g. 2.50
   ADD COLUMN IF NOT EXISTS ltv              NUMERIC(5,2),      -- e.g. 75.00 (%)
   ADD COLUMN IF NOT EXISTS term_months      INTEGER,           -- e.g. 12
+  ADD COLUMN IF NOT EXISTS experience       TEXT,
+  ADD COLUMN IF NOT EXISTS experience_level TEXT,
+  ADD COLUMN IF NOT EXISTS notes            TEXT,
   ADD COLUMN IF NOT EXISTS terms_set_at     TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS terms_set_by     UUID REFERENCES profiles(id);
+
+-- 2b. Contact fields used by import, broker, and borrower signup flows
+ALTER TABLE contacts
+  ADD COLUMN IF NOT EXISTS stage lead_stage DEFAULT 'new_inquiry';
+
+-- 2c. Document fields used by upload routes
+ALTER TABLE documents
+  ADD COLUMN IF NOT EXISTS file_name   TEXT,
+  ADD COLUMN IF NOT EXISTS uploaded_by TEXT CHECK (uploaded_by IN ('staff','broker','borrower'));
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_deal_doc_type
+  ON documents(deal_id, doc_type)
+  WHERE deal_id IS NOT NULL;
 
 -- 3. Broker profile extras (company name, license number)
 ALTER TABLE profiles
@@ -46,27 +63,24 @@ DROP POLICY IF EXISTS broker_deals_select ON deals;
 CREATE POLICY broker_deals_select ON deals
   FOR SELECT USING (
     auth.uid() IN (
-      SELECT id FROM profiles WHERE role = 'admin'
+      SELECT id FROM profiles WHERE role = 'owner'
     )
     OR broker_id = auth.uid()
-    OR id IN (
-      SELECT deal_id FROM deal_contacts
-      WHERE contact_id IN (
-        SELECT id FROM contacts WHERE email = auth.email()
-      )
+    OR contact_id IN (
+      SELECT id FROM contacts WHERE portal_user_id = auth.uid() OR email = auth.email()
     )
   );
 
 DROP POLICY IF EXISTS broker_deals_insert ON deals;
 CREATE POLICY broker_deals_insert ON deals
   FOR INSERT WITH CHECK (
-    auth.uid() IN (SELECT id FROM profiles WHERE role IN ('admin','broker'))
+    auth.uid() IN (SELECT id FROM profiles WHERE role IN ('owner','broker'))
   );
 
 DROP POLICY IF EXISTS broker_deals_update ON deals;
 CREATE POLICY broker_deals_update ON deals
   FOR UPDATE USING (
-    auth.uid() IN (SELECT id FROM profiles WHERE role = 'admin')
+    auth.uid() IN (SELECT id FROM profiles WHERE role = 'owner')
     OR broker_id = auth.uid()
   );
 
@@ -77,14 +91,14 @@ DROP POLICY IF EXISTS broker_clients_select ON broker_clients;
 CREATE POLICY broker_clients_select ON broker_clients
   FOR SELECT USING (
     broker_id = auth.uid()
-    OR auth.uid() IN (SELECT id FROM profiles WHERE role = 'admin')
+    OR auth.uid() IN (SELECT id FROM profiles WHERE role = 'owner')
   );
 
 DROP POLICY IF EXISTS broker_clients_insert ON broker_clients;
 CREATE POLICY broker_clients_insert ON broker_clients
   FOR INSERT WITH CHECK (
     broker_id = auth.uid()
-    OR auth.uid() IN (SELECT id FROM profiles WHERE role = 'admin')
+    OR auth.uid() IN (SELECT id FROM profiles WHERE role = 'owner')
   );
 
 -- 7. Approve broker function (called by admin)

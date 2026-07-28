@@ -11,8 +11,12 @@ Complete step-by-step setup from zero to live at **crm.assetliftlending.com**.
    - Region: pick closest to you (US East recommended)
    - Generate a strong database password — save it
 
-2. Once created, go to **SQL Editor** → paste the entire contents of `supabase/schema.sql` → **Run**
-   - This creates all tables, RLS policies, enums, automations, and seed data
+2. Once created, go to **SQL Editor** and run these files in order:
+   - `supabase/schema.sql`
+   - `supabase/schema-additions.sql`
+   - `supabase/schema-seo.sql`
+   - `supabase/schema-multitenant-auth.sql`
+   - This creates all tables, auth roles, RLS policies, tenant controls, automations, and seed data
 
 3. **Storage bucket** → Create bucket named `documents` → set it to **Public** (so file URLs work)
 
@@ -29,7 +33,7 @@ Complete step-by-step setup from zero to live at **crm.assetliftlending.com**.
 6. **Create your admin user**: Authentication → Users → Invite User → your email
    - After you sign in, go to SQL Editor and run:
    ```sql
-   UPDATE profiles SET role = 'admin' WHERE email = 'info@assetliftlending.com';
+   UPDATE profiles SET role = 'owner' WHERE email = 'info@assetliftlending.com';
    ```
 
 ---

@@ -76,16 +76,16 @@ ALTER TABLE tracked_keywords  ENABLE ROW LEVEL SECURITY;
 
 -- Admins only (internal tool)
 CREATE POLICY websites_admin ON websites
-  USING (auth.uid() IN (SELECT id FROM profiles WHERE role = 'admin'));
+  USING (auth.uid() IN (SELECT id FROM profiles WHERE role = 'owner'));
 
 CREATE POLICY seo_audits_admin ON seo_audits
-  USING (auth.uid() IN (SELECT id FROM profiles WHERE role = 'admin'));
+  USING (auth.uid() IN (SELECT id FROM profiles WHERE role = 'owner'));
 
 CREATE POLICY gen_content_admin ON generated_content
-  USING (auth.uid() IN (SELECT id FROM profiles WHERE role = 'admin'));
+  USING (auth.uid() IN (SELECT id FROM profiles WHERE role = 'owner'));
 
 CREATE POLICY tracked_kw_admin ON tracked_keywords
-  USING (auth.uid() IN (SELECT id FROM profiles WHERE role = 'admin'));
+  USING (auth.uid() IN (SELECT id FROM profiles WHERE role = 'owner'));
 
 -- 7. Seed: add assetliftlending.com as first website
 INSERT INTO websites (name, url, industry, location, target_audience, primary_keywords, competitors)

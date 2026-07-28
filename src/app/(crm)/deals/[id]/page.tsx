@@ -8,7 +8,7 @@ export default async function DealDetailPage({ params }: { params: { id: string 
   const [{ data: deal }, { data: docs }, { data: tasks }] = await Promise.all([
     supabase
       .from('deals')
-      .select('*, contacts(*, profiles(full_name)), profiles(full_name)')
+      .select('*, contacts(*), profiles:assigned_to(full_name)')
       .eq('id', params.id)
       .single(),
     supabase.from('documents').select('*').eq('deal_id', params.id).order('created_at'),

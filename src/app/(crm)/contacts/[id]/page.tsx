@@ -9,12 +9,12 @@ export default async function ContactDetailPage({ params }: { params: { id: stri
     await Promise.all([
       supabase
         .from('contacts')
-        .select('*, profiles(full_name)')
+        .select('*, profiles:assigned_to(full_name)')
         .eq('id', params.id)
         .single(),
       supabase
         .from('deals')
-        .select('*, profiles(full_name)')
+        .select('*, profiles:assigned_to(full_name)')
         .eq('contact_id', params.id)
         .order('created_at', { ascending: false }),
       supabase

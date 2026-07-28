@@ -22,7 +22,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('contacts')
-    .select('*, profiles(full_name), deals(*)')
+    .select('*, profiles:assigned_to(full_name), deals(*)')
     .eq('id', params.id)
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 404 })

@@ -25,6 +25,7 @@ const NAV = [
 
 const BOTTOM_NAV = [
   { href: '/admin',          icon: Import,   label: 'Import / Admin' },
+  { href: '/admin/users',    icon: Users,    label: 'User Management' },
   { href: '/admin/brokers',  icon: Users,    label: 'Broker Partners' },
   { href: '/settings',       icon: Settings, label: 'Settings' },
 ]

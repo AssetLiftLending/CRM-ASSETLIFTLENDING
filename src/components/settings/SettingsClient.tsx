@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { User, Phone, Mail, MessageSquare, Zap, Users, Shield, Save } from 'lucide-react'
+import { User, Phone, Mail, Zap, Users, Save } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 type Profile    = Record<string, any>

@@ -51,8 +51,8 @@ export const fmt = {
       new_lead: 'New lead', pending_lead: 'Pending lead',
       closed_deal: 'Closed deal',
       new_inquiry: 'New Inquiry', contacted: 'Contacted',
-      just_searching: 'Just Searching', dead_lead: 'Dead Lead',
-      in_progress: 'In Progress', funded: 'Funded',
+      just_searching: 'Just Searching', dead_lead: 'Dead lead',
+      in_progress: 'In the middle of progress', funded: 'Funded',
     }
     return s ? (map[s] ?? s) : '—'
   },

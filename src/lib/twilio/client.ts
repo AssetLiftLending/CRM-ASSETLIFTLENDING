@@ -1,18 +1,22 @@
 import twilio from 'twilio'
 
-export const twilioClient = twilio(
-  process.env.TWILIO_ACCOUNT_SID!,
-  process.env.TWILIO_AUTH_TOKEN!
-)
+function getTwilioClient() {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID
+  const authToken = process.env.TWILIO_AUTH_TOKEN
+  if (!accountSid || !authToken) {
+    throw new Error('TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN are required for Twilio actions.')
+  }
+  return twilio(accountSid, authToken)
+}
 
-export const TWILIO_PHONE = process.env.TWILIO_PHONE_NUMBER!
-export const TWILIO_CELL  = process.env.TWILIO_CELL_NUMBER!
-export const TWILIO_WA    = process.env.TWILIO_WHATSAPP_NUMBER!
+export const TWILIO_PHONE = process.env.TWILIO_PHONE_NUMBER ?? ''
+export const TWILIO_CELL  = process.env.TWILIO_CELL_NUMBER ?? ''
+export const TWILIO_WA    = process.env.TWILIO_WHATSAPP_NUMBER ?? ''
 
 // ── CALLS ──────────────────────────────────────────────────
 
 export async function makeCall(to: string, from = TWILIO_PHONE) {
-  return twilioClient.calls.create({
+  return getTwilioClient().calls.create({
     to,
     from,
     url: `${process.env.NEXT_PUBLIC_APP_URL}/api/calls/twiml`,
@@ -30,7 +34,7 @@ export async function forwardToCell(to: string) {
 // ── SMS ────────────────────────────────────────────────────
 
 export async function sendSms(to: string, body: string, from = TWILIO_PHONE) {
-  return twilioClient.messages.create({
+  return getTwilioClient().messages.create({
     to,
     from,
     body,
@@ -41,7 +45,7 @@ export async function sendSms(to: string, body: string, from = TWILIO_PHONE) {
 // ── WHATSAPP ───────────────────────────────────────────────
 
 export async function sendWhatsApp(to: string, body: string) {
-  return twilioClient.messages.create({
+  return getTwilioClient().messages.create({
     to: `whatsapp:${to}`,
     from: TWILIO_WA,
     body,
@@ -54,7 +58,7 @@ export async function sendWhatsAppTemplate(
   templateSid: string,
   variables: Record<string, string>
 ) {
-  return twilioClient.messages.create({
+  return getTwilioClient().messages.create({
     to: `whatsapp:${to}`,
     from: TWILIO_WA,
     contentSid: templateSid,
@@ -65,7 +69,7 @@ export async function sendWhatsAppTemplate(
 // ── VOICEMAIL DROP ─────────────────────────────────────────
 
 export async function dropVoicemail(to: string, voicemailUrl: string) {
-  return twilioClient.calls.create({
+  return getTwilioClient().calls.create({
     to,
     from: TWILIO_PHONE,
     url: `${process.env.NEXT_PUBLIC_APP_URL}/api/calls/voicemail-twiml?url=${encodeURIComponent(voicemailUrl)}`,

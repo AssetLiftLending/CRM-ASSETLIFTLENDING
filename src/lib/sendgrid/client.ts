@@ -1,6 +1,18 @@
 import sgMail from '@sendgrid/mail'
 
-sgMail.setApiKey(process.env.SENDGRID_API_KEY!)
+let sendGridConfigured = false
+
+function getSendGridClient() {
+  const apiKey = process.env.SENDGRID_API_KEY
+  if (!apiKey?.startsWith('SG.')) {
+    throw new Error('SENDGRID_API_KEY is required to send email.')
+  }
+  if (!sendGridConfigured) {
+    sgMail.setApiKey(apiKey)
+    sendGridConfigured = true
+  }
+  return sgMail
+}
 
 const FROM = {
   email: process.env.SENDGRID_FROM_EMAIL ?? 'info@assetliftlending.com',
@@ -35,7 +47,7 @@ export async function sendEmail({
       subscriptionTracking: { enable: true },
     },
   }
-  return sgMail.send(msg)
+  return getSendGridClient().send(msg)
 }
 
 // ── BULK CAMPAIGN ──────────────────────────────────────────
@@ -58,7 +70,7 @@ export async function sendCampaign({
     substitutions: r.substitutions ?? {},
   }))
 
-  return sgMail.send({
+  return getSendGridClient().send({
     from: { email: fromEmail ?? FROM.email, name: fromName ?? FROM.name },
     subject,
     html,

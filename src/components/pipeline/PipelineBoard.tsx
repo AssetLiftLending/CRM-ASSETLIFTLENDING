@@ -2,9 +2,9 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { fmt, STAGE_COLORS } from '@/lib/utils/format'
+import { fmt } from '@/lib/utils/format'
 import toast from 'react-hot-toast'
-import { Phone, ArrowRight, Settings, Plus, Trash2 } from 'lucide-react'
+import { Phone, ArrowRight, Settings, Plus, Trash2, MessageSquare, Mail, MessageCircle, FileText, Play } from 'lucide-react'
 
 const FALLBACK_STAGES = [
   { id: 'new_lead', key: 'new_lead', label: 'New lead', sort_order: 1, color: 'border-blue-300 bg-blue-50', is_closed: false },
@@ -25,8 +25,29 @@ interface Deal {
   property_state?: string
   created_at: string
   updated_at: string
-  contacts?: { id: string; first_name: string; last_name: string; phone?: string } | null
+  contacts?: { id: string; first_name: string; last_name: string; phone?: string; email?: string } | null
   profiles?: { id: string; full_name: string } | null
+}
+
+interface Communication {
+  id: string
+  contact_id: string
+  deal_id?: string | null
+  type: string
+  direction?: string | null
+  subject?: string | null
+  body?: string | null
+  snippet?: string | null
+  duration_secs?: number | null
+  recording_url?: string | null
+  transcript?: string | null
+  ai_summary?: string | null
+  status?: string | null
+  from_number?: string | null
+  to_number?: string | null
+  from_email?: string | null
+  to_email?: string | null
+  created_at: string
 }
 
 interface Stage {
@@ -42,10 +63,12 @@ export default function PipelineBoard({
   deals: initialDeals,
   profiles,
   stages: initialStages,
+  communications,
 }: {
   deals: Deal[]
   profiles: Array<{ id: string; full_name: string | null }>
   stages: Stage[]
+  communications: Communication[]
 }) {
   const [deals, setDeals] = useState<Deal[]>(initialDeals)
   const [stages, setStages] = useState<Stage[]>(
@@ -248,6 +271,7 @@ export default function PipelineBoard({
                   <DealCard
                     key={deal.id}
                     deal={deal}
+                    communications={communications.filter((comm) => comm.contact_id === deal.contacts?.id)}
                     onDragStart={() => setDragId(deal.id)}
                     onDragEnd={() => setDragId(null)}
                   />
@@ -264,15 +288,18 @@ export default function PipelineBoard({
 
 function DealCard({
   deal,
+  communications,
   onDragStart,
   onDragEnd,
 }: {
   deal: Deal
+  communications: Communication[]
   onDragStart: () => void
   onDragEnd: () => void
 }) {
   const contact = deal.contacts
   const name = contact ? fmt.name(contact.first_name, contact.last_name) : 'Unknown'
+  const [showComms, setShowComms] = useState(false)
 
   return (
     <div
@@ -306,6 +333,86 @@ function DealCard({
           </Link>
         </div>
       </div>
+
+      {contact && (
+        <button
+          type="button"
+          onClick={() => setShowComms((value) => !value)}
+          className="mt-2 flex w-full items-center justify-between rounded-lg bg-gray-50 px-2 py-1.5 text-xs font-medium text-gray-600 hover:bg-gold-50 hover:text-gold-700 transition-base"
+        >
+          <span className="flex items-center gap-1.5">
+            <MessageSquare size={12} />
+            Communications
+          </span>
+          <span>{communications.length}</span>
+        </button>
+      )}
+
+      {showComms && contact && (
+        <div className="mt-2 rounded-xl border border-gray-100 bg-gray-50 p-2">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-xs font-bold text-dark-800">Contact History</span>
+            <Link
+              href={`/communications?contact=${contact.id}`}
+              className="text-xs font-medium text-gold-600 hover:text-gold-700"
+            >
+              Open
+            </Link>
+          </div>
+          <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+            {communications.map((comm) => (
+              <CommunicationRow key={comm.id} communication={comm} />
+            ))}
+            {!communications.length && (
+              <div className="rounded-lg bg-white p-3 text-center text-xs text-gray-400">No communications yet</div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
+}
+
+function CommunicationRow({ communication }: { communication: Communication }) {
+  const Icon = getCommunicationIcon(communication.type)
+  const preview = communication.subject || communication.body || communication.snippet || communication.ai_summary || communication.transcript
+
+  return (
+    <div className="rounded-lg bg-white p-2 text-xs">
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <span className="flex min-w-0 items-center gap-1.5 font-semibold text-dark-800">
+          {Icon}
+          <span className="capitalize">{communication.type}</span>
+          {communication.direction && (
+            <span className={`rounded px-1 py-0.5 text-[10px] font-bold ${communication.direction === 'inbound' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+              {communication.direction}
+            </span>
+          )}
+        </span>
+        <span className="shrink-0 text-[10px] text-gray-400">{fmt.relativeTime(communication.created_at)}</span>
+      </div>
+      {preview && <p className="line-clamp-3 text-gray-600">{preview}</p>}
+      {communication.duration_secs ? (
+        <div className="mt-1 text-[10px] font-medium text-gray-400">{fmt.callDuration(communication.duration_secs)}</div>
+      ) : null}
+      {communication.recording_url && (
+        <a
+          href={communication.recording_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-1 inline-flex items-center gap-1 text-[10px] font-medium text-gold-600 hover:underline"
+        >
+          <Play size={10} /> Recording
+        </a>
+      )}
+    </div>
+  )
+}
+
+function getCommunicationIcon(type: string) {
+  if (type === 'call') return <Phone size={12} className="text-green-600" />
+  if (type === 'sms') return <MessageSquare size={12} className="text-blue-600" />
+  if (type === 'email') return <Mail size={12} className="text-purple-600" />
+  if (type === 'whatsapp') return <MessageCircle size={12} className="text-green-600" />
+  return <FileText size={12} className="text-gray-500" />
 }

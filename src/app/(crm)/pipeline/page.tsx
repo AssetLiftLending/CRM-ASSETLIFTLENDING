@@ -26,5 +26,27 @@ export default async function PipelinePage() {
     profiles: Array.isArray(deal.profiles) ? deal.profiles[0] ?? null : deal.profiles,
   }))
 
-  return <PipelineBoard deals={normalizedDeals} profiles={profiles ?? []} stages={stages ?? []} />
+  const contactIds = Array.from(new Set(normalizedDeals.map((deal) => deal.contacts?.id).filter(Boolean)))
+
+  const { data: communications } = contactIds.length
+    ? await supabase
+      .from('communications')
+      .select(`
+        id, contact_id, deal_id, type, direction, subject, body, snippet,
+        duration_secs, recording_url, transcript, ai_summary, status,
+        from_number, to_number, from_email, to_email, created_at
+      `)
+      .in('contact_id', contactIds)
+      .order('created_at', { ascending: false })
+      .limit(1000)
+    : { data: [] }
+
+  return (
+    <PipelineBoard
+      deals={normalizedDeals}
+      profiles={profiles ?? []}
+      stages={stages ?? []}
+      communications={communications ?? []}
+    />
+  )
 }

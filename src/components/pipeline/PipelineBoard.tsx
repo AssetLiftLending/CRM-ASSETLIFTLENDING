@@ -300,6 +300,10 @@ function DealCard({
   const contact = deal.contacts
   const name = contact ? fmt.name(contact.first_name, contact.last_name) : 'Unknown'
   const [showComms, setShowComms] = useState(false)
+  const latestCommunication = communications[0]
+  const latestPreview = latestCommunication
+    ? latestCommunication.subject || latestCommunication.body || latestCommunication.snippet || latestCommunication.ai_summary || latestCommunication.transcript
+    : null
 
   return (
     <div
@@ -335,17 +339,30 @@ function DealCard({
       </div>
 
       {contact && (
-        <button
-          type="button"
-          onClick={() => setShowComms((value) => !value)}
-          className="mt-2 flex w-full items-center justify-between rounded-lg bg-gray-50 px-2 py-1.5 text-xs font-medium text-gray-600 hover:bg-gold-50 hover:text-gold-700 transition-base"
-        >
-          <span className="flex items-center gap-1.5">
-            <MessageSquare size={12} />
-            Communications
-          </span>
-          <span>{communications.length}</span>
-        </button>
+        <div className="mt-2 rounded-xl border border-gold-200 bg-gold-50">
+          <button
+            type="button"
+            onClick={() => setShowComms((value) => !value)}
+            className="flex w-full items-center justify-between px-2.5 py-2 text-left text-xs font-bold text-dark-800 hover:bg-gold-100 transition-base"
+          >
+            <span className="flex items-center gap-1.5">
+              <MessageSquare size={13} />
+              View Communications
+            </span>
+            <span className="rounded-full bg-white px-2 py-0.5 text-gold-700 shadow-sm">{communications.length}</span>
+          </button>
+          {latestCommunication && (
+            <button
+              type="button"
+              onClick={() => setShowComms(true)}
+              className="block w-full border-t border-gold-100 px-2.5 py-1.5 text-left text-[11px] text-gray-600 hover:bg-white/70"
+            >
+              <span className="font-semibold capitalize text-dark-800">{latestCommunication.type}</span>
+              <span className="ml-1 text-gray-400">{fmt.relativeTime(latestCommunication.created_at)}</span>
+              {latestPreview && <span className="mt-0.5 block truncate">{latestPreview}</span>}
+            </button>
+          )}
+        </div>
       )}
 
       {showComms && contact && (

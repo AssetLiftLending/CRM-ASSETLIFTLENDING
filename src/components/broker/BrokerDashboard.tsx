@@ -4,6 +4,9 @@ import { createBrowserClient } from '@supabase/ssr'
 import { useRouter } from 'next/navigation'
 
 const STAGE_LABELS: Record<string, string> = {
+  new_lead: 'New lead',
+  pending_lead: 'Pending lead',
+  closed_deal: 'Closed deal',
   new_inquiry: 'New Inquiry',
   contacted: 'Contacted',
   just_searching: 'Just Searching',
@@ -13,6 +16,9 @@ const STAGE_LABELS: Record<string, string> = {
 }
 
 const STAGE_COLORS: Record<string, string> = {
+  new_lead: 'bg-blue-900/40 text-blue-300 border-blue-800',
+  pending_lead: 'bg-yellow-900/40 text-yellow-300 border-yellow-800',
+  closed_deal: 'bg-green-900/40 text-green-300 border-green-800',
   new_inquiry: 'bg-blue-900/40 text-blue-300 border-blue-800',
   contacted: 'bg-purple-900/40 text-purple-300 border-purple-800',
   just_searching: 'bg-yellow-900/40 text-yellow-300 border-yellow-800',

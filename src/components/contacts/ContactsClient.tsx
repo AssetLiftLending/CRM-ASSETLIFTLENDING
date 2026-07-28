@@ -43,12 +43,11 @@ export default function ContactsClient({
 
   const STAGES = [
     { value: '', label: 'All Stages' },
-    { value: 'new_inquiry', label: 'New Inquiry' },
-    { value: 'contacted', label: 'Contacted' },
-    { value: 'just_searching', label: 'Just Searching' },
-    { value: 'dead_lead', label: 'Dead Lead' },
-    { value: 'in_progress', label: 'In Progress' },
-    { value: 'funded', label: 'Funded' },
+    { value: 'new_lead', label: 'New lead' },
+    { value: 'pending_lead', label: 'Pending lead' },
+    { value: 'dead_lead', label: 'Dead lead' },
+    { value: 'in_progress', label: 'In the middle of progress' },
+    { value: 'closed_deal', label: 'Closed deal' },
   ]
 
   return (

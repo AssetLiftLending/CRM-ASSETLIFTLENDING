@@ -35,6 +35,70 @@ ALTER TABLE deals
 ALTER TABLE contacts
   ADD COLUMN IF NOT EXISTS stage lead_stage DEFAULT 'new_inquiry';
 
+ALTER TABLE deals
+  ALTER COLUMN stage DROP DEFAULT,
+  ALTER COLUMN stage TYPE TEXT USING stage::text,
+  ALTER COLUMN stage SET DEFAULT 'new_lead';
+
+ALTER TABLE contacts
+  ALTER COLUMN stage DROP DEFAULT,
+  ALTER COLUMN stage TYPE TEXT USING stage::text,
+  ALTER COLUMN stage SET DEFAULT 'new_lead';
+
+CREATE TABLE IF NOT EXISTS pipeline_stages (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  key             TEXT NOT NULL,
+  label           TEXT NOT NULL,
+  sort_order      INTEGER NOT NULL DEFAULT 0,
+  color           TEXT NOT NULL DEFAULT 'border-gray-300 bg-gray-50',
+  is_closed       BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (organization_id, key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pipeline_stages_org ON pipeline_stages(organization_id);
+
+INSERT INTO pipeline_stages (organization_id, key, label, sort_order, color, is_closed)
+SELECT org.id, stage.key, stage.label, stage.sort_order, stage.color, stage.is_closed
+FROM organizations org
+CROSS JOIN (
+  VALUES
+    ('new_lead', 'New lead', 1, 'border-blue-300 bg-blue-50', FALSE),
+    ('pending_lead', 'Pending lead', 2, 'border-yellow-300 bg-yellow-50', FALSE),
+    ('dead_lead', 'Dead lead', 3, 'border-red-300 bg-red-50', TRUE),
+    ('in_progress', 'In the middle of progress', 4, 'border-gold-300 bg-gold-50', FALSE),
+    ('closed_deal', 'Closed deal', 5, 'border-green-300 bg-green-50', TRUE)
+) AS stage(key, label, sort_order, color, is_closed)
+ON CONFLICT (organization_id, key) DO UPDATE
+SET label = EXCLUDED.label,
+    sort_order = EXCLUDED.sort_order,
+    color = EXCLUDED.color,
+    is_closed = EXCLUDED.is_closed;
+
+UPDATE deals
+SET stage = CASE stage
+  WHEN 'new_inquiry' THEN 'new_lead'
+  WHEN 'contacted' THEN 'pending_lead'
+  WHEN 'just_searching' THEN 'pending_lead'
+  WHEN 'dead_lead' THEN 'dead_lead'
+  WHEN 'in_progress' THEN 'in_progress'
+  WHEN 'funded' THEN 'closed_deal'
+  ELSE COALESCE(stage, 'new_lead')
+END;
+
+UPDATE contacts
+SET stage = CASE stage
+  WHEN 'new_inquiry' THEN 'new_lead'
+  WHEN 'contacted' THEN 'pending_lead'
+  WHEN 'just_searching' THEN 'pending_lead'
+  WHEN 'dead_lead' THEN 'dead_lead'
+  WHEN 'in_progress' THEN 'in_progress'
+  WHEN 'funded' THEN 'closed_deal'
+  ELSE COALESCE(stage, 'new_lead')
+END;
+
 -- 2c. Document fields used by upload routes
 ALTER TABLE documents
   ADD COLUMN IF NOT EXISTS file_name   TEXT,

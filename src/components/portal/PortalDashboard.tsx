@@ -26,11 +26,11 @@ const DOC_TYPES = [
 ] as const
 
 const STAGE_STEPS = [
-  { key: 'new_inquiry',   label: 'Application Received' },
-  { key: 'contacted',     label: 'Under Review' },
-  { key: 'just_searching',label: 'Searching Properties' },
+  { key: 'new_lead',      label: 'Application Received' },
+  { key: 'pending_lead',  label: 'Pending Review' },
+  { key: 'dead_lead',     label: 'Not Moving Forward' },
   { key: 'in_progress',   label: 'In Processing' },
-  { key: 'funded',        label: 'Funded! 🎉' },
+  { key: 'closed_deal',   label: 'Closed Deal' },
 ] as const
 
 export default function PortalDashboard({ contact }: { contact: Contact }) {

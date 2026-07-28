@@ -22,10 +22,10 @@ export default async function DashboardPage() {
     { data: recentComms },
   ] = await Promise.all([
     supabase.from('contacts').select('*', { count: 'exact', head: true }),
-    supabase.from('deals').select('*', { count: 'exact', head: true }).eq('stage', 'new_inquiry'),
+    supabase.from('deals').select('*', { count: 'exact', head: true }).in('stage', ['new_lead', 'new_inquiry']),
     supabase.from('deals').select('*', { count: 'exact', head: true }).eq('stage', 'in_progress'),
     supabase.from('deals').select('*', { count: 'exact', head: true })
-      .eq('stage', 'funded')
+      .in('stage', ['closed_deal', 'funded'])
       .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
     supabase.from('contacts').select('id,first_name,last_name,phone,lead_source,created_at')
       .order('created_at', { ascending: false }).limit(5),

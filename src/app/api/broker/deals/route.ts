@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       email: body.borrower_email,
       phone: body.borrower_phone || null,
       lead_source: 'broker',
-      stage: 'new_inquiry',
+      stage: 'new_lead',
     }).select().single()
     contactId = newContact!.id
 
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
     experience: body.experience || null,
     experience_level: body.experience || null,
     notes: body.notes || null,
-    stage: 'new_inquiry',
+    stage: 'new_lead',
   }).select().single()
 
   // Notify lender

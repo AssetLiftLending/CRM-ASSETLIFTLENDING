@@ -398,6 +398,7 @@ ALTER TABLE public.seo_audits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.generated_content ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tracked_keywords ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.document_folders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.pipeline_stages ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS organizations_member_select ON public.organizations;
 CREATE POLICY organizations_member_select ON public.organizations
@@ -444,12 +445,21 @@ DROP POLICY IF EXISTS sms_templates_tenant_staff ON public.sms_templates;
 DROP POLICY IF EXISTS document_folders_tenant_staff ON public.document_folders;
 DROP POLICY IF EXISTS document_folders_portal_own ON public.document_folders;
 DROP POLICY IF EXISTS document_folders_broker_own ON public.document_folders;
+DROP POLICY IF EXISTS pipeline_stages_tenant_staff ON public.pipeline_stages;
+DROP POLICY IF EXISTS pipeline_stages_tenant_read ON public.pipeline_stages;
 
 CREATE POLICY profiles_own ON public.profiles
   FOR SELECT USING (id = auth.uid());
 
 CREATE POLICY profiles_org_staff_read ON public.profiles
   FOR SELECT USING (public.is_org_staff(organization_id));
+
+CREATE POLICY pipeline_stages_tenant_read ON public.pipeline_stages
+  FOR SELECT USING (public.is_org_member(organization_id));
+
+CREATE POLICY pipeline_stages_tenant_staff ON public.pipeline_stages
+  FOR ALL USING (public.is_org_staff(organization_id))
+  WITH CHECK (public.is_org_staff(organization_id));
 
 CREATE POLICY contacts_tenant_staff ON public.contacts
   FOR ALL USING (public.is_org_staff(organization_id))

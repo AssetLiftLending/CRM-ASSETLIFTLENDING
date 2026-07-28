@@ -72,7 +72,7 @@ export default function AIClient({
       return {
         id: c.id,
         name: fmt.name(c.first_name, c.last_name),
-        stage: deal?.stage ?? 'new_inquiry',
+        stage: deal?.stage ?? 'new_lead',
         loan_program: deal?.loan_program ?? 'fix_flip',
         last_contact_days: daysSince,
         email_opens: 0,
@@ -141,7 +141,7 @@ export default function AIClient({
       body: JSON.stringify({
         contactName: fmt.name(contact.first_name, contact.last_name),
         loanProgram: deal?.loan_program ?? 'fix_flip',
-        stage: deal?.stage ?? 'new_inquiry',
+        stage: deal?.stage ?? 'new_lead',
         lastContactDate: deal?.updated_at ?? '',
         medium: draftMedium,
       }),

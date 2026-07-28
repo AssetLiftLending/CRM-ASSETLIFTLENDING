@@ -28,7 +28,7 @@ export async function GET() {
   }, {})
 
   // Funded deals
-  const funded = (deals ?? []).filter(d => d.stage === 'funded')
+  const funded = (deals ?? []).filter(d => d.stage === 'closed_deal' || d.stage === 'funded')
   const totalFunded = funded.reduce((sum, d) => sum + (d.loan_amount ?? 0), 0)
 
   // Ad ROI

@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     phone: account.phone || null,
     lead_source: 'portal',
     portal_user_id: userId,
-    stage: 'new_inquiry',
+    stage: 'new_lead',
   }).select().single()
 
   if (contactError) return NextResponse.json({ error: contactError.message }, { status: 500 })
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     experience: deal.experience || null,
     experience_level: deal.experience || null,
     notes: deal.notes || null,
-    stage: 'new_inquiry',
+    stage: 'new_lead',
     submitted_by: 'borrower',
   }).select().single()
 

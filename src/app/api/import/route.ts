@@ -51,11 +51,11 @@ export async function POST(req: NextRequest) {
           })
         }
 
-        // Create a deal in new_inquiry
+        // Create a deal in the new lead stage
         if (contact) {
           await supabase.from('deals').insert({
             contact_id: contact.id,
-            stage: row['Pipeline Stage'] ? mapGHLStage(row['Pipeline Stage']) : 'new_inquiry',
+            stage: row['Pipeline Stage'] ? mapGHLStage(row['Pipeline Stage']) : 'new_lead',
             loan_program: 'fix_flip',
             lead_source: source.toLowerCase().replace(/\s+/g, '_'),
           })
@@ -76,11 +76,10 @@ export async function POST(req: NextRequest) {
 
 function mapGHLStage(ghlStage: string): string {
   const s = ghlStage.toLowerCase()
-  if (s.includes('new') || s.includes('inquiry')) return 'new_inquiry'
-  if (s.includes('contact')) return 'contacted'
-  if (s.includes('search') || s.includes('nurture')) return 'just_searching'
+  if (s.includes('new') || s.includes('inquiry')) return 'new_lead'
+  if (s.includes('contact') || s.includes('pending') || s.includes('search') || s.includes('nurture')) return 'pending_lead'
   if (s.includes('dead') || s.includes('lost') || s.includes('unqualified')) return 'dead_lead'
   if (s.includes('progress') || s.includes('active') || s.includes('processing')) return 'in_progress'
-  if (s.includes('fund') || s.includes('closed') || s.includes('won')) return 'funded'
-  return 'new_inquiry'
+  if (s.includes('fund') || s.includes('closed') || s.includes('won')) return 'closed_deal'
+  return 'new_lead'
 }

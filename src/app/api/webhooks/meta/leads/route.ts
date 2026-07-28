@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
         if (contactId) {
           // Create deal
           await supabase.from('deals').insert({
-            contact_id: contactId, stage: 'new_inquiry', loan_program: 'fix_flip',
+            contact_id: contactId, stage: 'new_lead', loan_program: 'fix_flip',
             lead_source: 'meta_ad',
             lead_source_detail: contact.lead_source_detail,
           })

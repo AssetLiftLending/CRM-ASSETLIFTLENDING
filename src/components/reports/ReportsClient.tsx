@@ -34,7 +34,7 @@ export default function ReportsClient({
   // ── Computed metrics ────────────────────────────────────
   const totalContacts = contacts.length
   const totalDeals    = deals.length
-  const fundedDeals   = deals.filter((d) => d.stage === 'funded')
+  const fundedDeals   = deals.filter((d) => d.stage === 'closed_deal' || d.stage === 'funded')
   const totalRevenue  = fundedDeals.reduce((s, d) => s + (d.funded_amount ?? d.loan_amount ?? 0), 0)
   const convRate      = totalDeals > 0 ? (fundedDeals.length / totalDeals * 100).toFixed(1) : '0'
   const pipelineValue = deals
@@ -58,7 +58,7 @@ export default function ReportsClient({
     .map(([name, value]) => ({ name: fmt.loanProgram(name), value }))
 
   // Pipeline by stage
-  const stageOrder = ['new_inquiry', 'contacted', 'just_searching', 'dead_lead', 'in_progress', 'funded']
+  const stageOrder = ['new_lead', 'pending_lead', 'dead_lead', 'in_progress', 'closed_deal']
   const stageData  = stageOrder.map((s) => ({
     name: fmt.stage(s),
     count: deals.filter((d) => d.stage === s).length,

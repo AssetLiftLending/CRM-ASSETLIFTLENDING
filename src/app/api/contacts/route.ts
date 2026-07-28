@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
         experience_count: toNumber(body.experience_count) ?? 0,
         entity_name: body.entity_name || null,
         entity_type: body.entity_type || null,
-        stage: 'new_inquiry',
+        stage: 'new_lead',
       })
       .select()
       .single()
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
       const { data: createdDeal, error: dealError } = await supabase.from('deals').insert({
         contact_id:       contact.id,
         loan_program:     body.loan_program || 'fix_flip',
-        stage:            'new_inquiry',
+        stage:            'new_lead',
         title:            propertyAddress ? `${propertyAddress} - ${body.loan_program || 'Loan'}` : `${firstName} ${lastName} - ${body.loan_program || 'Loan'}`,
         property_address: propertyAddress,
         property_city:    body.property_city || body.city || null,

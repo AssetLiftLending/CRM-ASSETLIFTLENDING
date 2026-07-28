@@ -4,7 +4,8 @@ import PipelineBoard from '@/components/pipeline/PipelineBoard'
 export default async function PipelinePage() {
   const supabase = createServerClient()
 
-  const { data: deals } = await supabase
+  const [{ data: deals }, { data: profiles }, { data: stages }] = await Promise.all([
+    supabase
     .from('deals')
     .select(`
       id, title, stage, loan_program, loan_amount, purchase_price, arv,
@@ -14,10 +15,10 @@ export default async function PipelinePage() {
       profiles:assigned_to(id, full_name)
     `)
     .order('updated_at', { ascending: false })
-    .limit(200)
-
-  const { data: profiles } = await supabase
-    .from('profiles').select('id, full_name').eq('is_active', true)
+    .limit(200),
+    supabase.from('profiles').select('id, full_name').eq('is_active', true),
+    supabase.from('pipeline_stages').select('*').order('sort_order'),
+  ])
 
   const normalizedDeals = (deals ?? []).map((deal) => ({
     ...deal,
@@ -25,5 +26,5 @@ export default async function PipelinePage() {
     profiles: Array.isArray(deal.profiles) ? deal.profiles[0] ?? null : deal.profiles,
   }))
 
-  return <PipelineBoard deals={normalizedDeals} profiles={profiles ?? []} />
+  return <PipelineBoard deals={normalizedDeals} profiles={profiles ?? []} stages={stages ?? []} />
 }

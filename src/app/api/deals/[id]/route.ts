@@ -37,8 +37,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         }),
       }).catch(() => {})
 
-      // Special: deal_funded
-      if (body.stage === 'funded') {
+      // Special: deal_funded / closed deal
+      if (body.stage === 'closed_deal' || body.stage === 'funded') {
         fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/automations/trigger`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

@@ -4,15 +4,14 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { fmt, STAGE_COLORS } from '@/lib/utils/format'
 import toast from 'react-hot-toast'
-import { Phone, ArrowRight } from 'lucide-react'
+import { Phone, ArrowRight, Settings, Plus, Trash2 } from 'lucide-react'
 
-const STAGES = [
-  { key: 'new_inquiry',    label: 'New Inquiry',     color: 'border-blue-300    bg-blue-50' },
-  { key: 'contacted',      label: 'Contacted',       color: 'border-purple-300  bg-purple-50' },
-  { key: 'just_searching', label: 'Just Searching',  color: 'border-yellow-300  bg-yellow-50' },
-  { key: 'dead_lead',      label: 'Dead Lead',       color: 'border-red-300     bg-red-50' },
-  { key: 'in_progress',    label: 'In Progress',     color: 'border-gold-300    bg-gold-50' },
-  { key: 'funded',         label: 'Funded ✓',        color: 'border-green-300   bg-green-50' },
+const FALLBACK_STAGES = [
+  { id: 'new_lead', key: 'new_lead', label: 'New lead', sort_order: 1, color: 'border-blue-300 bg-blue-50', is_closed: false },
+  { id: 'pending_lead', key: 'pending_lead', label: 'Pending lead', sort_order: 2, color: 'border-yellow-300 bg-yellow-50', is_closed: false },
+  { id: 'dead_lead', key: 'dead_lead', label: 'Dead lead', sort_order: 3, color: 'border-red-300 bg-red-50', is_closed: true },
+  { id: 'in_progress', key: 'in_progress', label: 'In the middle of progress', sort_order: 4, color: 'border-gold-300 bg-gold-50', is_closed: false },
+  { id: 'closed_deal', key: 'closed_deal', label: 'Closed deal', sort_order: 5, color: 'border-green-300 bg-green-50', is_closed: true },
 ]
 
 interface Deal {
@@ -30,16 +29,32 @@ interface Deal {
   profiles?: { id: string; full_name: string } | null
 }
 
+interface Stage {
+  id: string
+  key: string
+  label: string
+  sort_order: number
+  color: string
+  is_closed: boolean
+}
+
 export default function PipelineBoard({
   deals: initialDeals,
   profiles,
+  stages: initialStages,
 }: {
   deals: Deal[]
   profiles: Array<{ id: string; full_name: string | null }>
+  stages: Stage[]
 }) {
-  const [deals, setDeals]         = useState<Deal[]>(initialDeals)
-  const [dragId, setDragId]       = useState<string | null>(null)
+  const [deals, setDeals] = useState<Deal[]>(initialDeals)
+  const [stages, setStages] = useState<Stage[]>(
+    (initialStages.length ? initialStages : FALLBACK_STAGES).sort((a, b) => a.sort_order - b.sort_order)
+  )
+  const [dragId, setDragId] = useState<string | null>(null)
   const [programFilter, setFilter] = useState('')
+  const [managing, setManaging] = useState(false)
+  const [newStage, setNewStage] = useState('')
 
   const filtered = programFilter
     ? deals.filter((d) => d.loan_program === programFilter)
@@ -47,21 +62,79 @@ export default function PipelineBoard({
 
   const byStage = (stage: string) => filtered.filter((d) => d.stage === stage)
 
-  async function moveDeal(dealId: string, newStage: string) {
-    setDeals((prev) =>
-      prev.map((d) => (d.id === dealId ? { ...d, stage: newStage } : d))
-    )
+  async function moveDeal(dealId: string, newStageKey: string) {
+    const previousDeals = deals
+    setDeals((prev) => prev.map((d) => (d.id === dealId ? { ...d, stage: newStageKey } : d)))
+
     const res = await fetch(`/api/deals/${dealId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stage: newStage }),
+      body: JSON.stringify({ stage: newStageKey }),
     })
+
     if (!res.ok) {
       toast.error('Failed to move deal')
-      setDeals(initialDeals) // revert
+      setDeals(previousDeals)
     } else {
-      toast.success(`Moved to ${fmt.stage(newStage)}`)
+      const stage = stages.find((s) => s.key === newStageKey)
+      toast.success(`Moved to ${stage?.label ?? fmt.stage(newStageKey)}`)
     }
+  }
+
+  async function addStage() {
+    const label = newStage.trim()
+    if (!label) return
+
+    const res = await fetch('/api/pipeline/stages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label }),
+    })
+    const data = await res.json()
+
+    if (!res.ok) {
+      toast.error(data.error || 'Failed to add stage')
+      return
+    }
+
+    setStages((current) => [...current, data.stage].sort((a, b) => a.sort_order - b.sort_order))
+    setNewStage('')
+    toast.success('Stage added')
+  }
+
+  async function updateStage(stage: Stage, update: Partial<Stage>) {
+    const previousStages = stages
+    const nextStage = { ...stage, ...update }
+    setStages((current) => current.map((s) => (s.id === stage.id ? nextStage : s)).sort((a, b) => a.sort_order - b.sort_order))
+
+    const res = await fetch('/api/pipeline/stages', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: stage.id, ...update }),
+    })
+
+    if (!res.ok) {
+      toast.error('Failed to update stage')
+      setStages(previousStages)
+    }
+  }
+
+  async function deleteStage(stage: Stage) {
+    if (stages.length <= 1) {
+      toast.error('Keep at least one stage')
+      return
+    }
+
+    const fallback = stages.find((s) => s.id !== stage.id)?.key ?? 'new_lead'
+    const res = await fetch(`/api/pipeline/stages?id=${stage.id}&fallback=${fallback}`, { method: 'DELETE' })
+    if (!res.ok) {
+      toast.error('Failed to delete stage')
+      return
+    }
+
+    setStages((current) => current.filter((s) => s.id !== stage.id))
+    setDeals((current) => current.map((deal) => deal.stage === stage.key ? { ...deal, stage: fallback } : deal))
+    toast.success('Stage deleted')
   }
 
   const PROGRAMS = [
@@ -75,11 +148,10 @@ export default function PipelineBoard({
 
   return (
     <div className="space-y-5">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-dark-800">Pipeline</h1>
-          <p className="text-gray-500 text-sm">{deals.length} total deals — drag to move</p>
+          <p className="text-gray-500 text-sm">{deals.length} total deals - drag to move</p>
         </div>
         <div className="flex items-center gap-3">
           <select
@@ -89,30 +161,78 @@ export default function PipelineBoard({
           >
             {PROGRAMS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
           </select>
-          <Link href="/contacts?new=1"
-            className="flex items-center gap-2 bg-gold-500 hover:bg-gold-400 text-dark-800 font-semibold text-sm px-4 py-2 rounded-xl transition-base">
-            + New Deal
+          <Link href="/contacts?new=1" className="flex items-center gap-2 bg-gold-500 hover:bg-gold-400 text-dark-800 font-semibold text-sm px-4 py-2 rounded-xl transition-base">
+            + New Lead
           </Link>
+          <button onClick={() => setManaging((value) => !value)} className="flex items-center gap-2 bg-white border border-gray-200 hover:border-gold-300 text-dark-800 font-semibold text-sm px-4 py-2 rounded-xl transition-base">
+            <Settings size={15} /> Stages
+          </button>
         </div>
       </div>
 
-      {/* Board */}
+      {managing && (
+        <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-dark-800">Pipeline Stages</h2>
+            <div className="flex items-center gap-2">
+              <input
+                value={newStage}
+                onChange={(event) => setNewStage(event.target.value)}
+                placeholder="New stage name"
+                className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gold-500"
+              />
+              <button onClick={addStage} className="p-2 bg-gold-500 hover:bg-gold-400 text-dark-800 rounded-xl" title="Add stage">
+                <Plus size={16} />
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
+            {stages.map((stage) => (
+              <div key={stage.id} className="flex items-center gap-2 border border-gray-100 rounded-xl p-2">
+                <input
+                  value={stage.label}
+                  onChange={(event) => updateStage(stage, { label: event.target.value })}
+                  className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-gold-500"
+                />
+                <input
+                  type="number"
+                  value={stage.sort_order}
+                  onChange={(event) => updateStage(stage, { sort_order: Number(event.target.value) })}
+                  className="w-16 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-gold-500"
+                  aria-label={`${stage.label} order`}
+                />
+                <label className="flex items-center gap-1 text-xs text-gray-500">
+                  <input
+                    type="checkbox"
+                    checked={stage.is_closed}
+                    onChange={(event) => updateStage(stage, { is_closed: event.target.checked })}
+                  />
+                  Closed
+                </label>
+                <button onClick={() => deleteStage(stage)} className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg" title="Delete stage">
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-4 overflow-x-auto pb-4">
-        {STAGES.map((stage) => {
+        {stages.map((stage) => {
           const stageDeals = byStage(stage.key)
           const totalValue = stageDeals.reduce((sum, d) => sum + (d.loan_amount ?? 0), 0)
 
           return (
             <div
-              key={stage.key}
-              className={`flex-shrink-0 w-64 rounded-2xl border-2 ${stage.color} flex flex-col`}
+              key={stage.id}
+              className={`flex-shrink-0 w-64 rounded-2xl border-2 ${stage.color || 'border-gray-300 bg-gray-50'} flex flex-col`}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 e.preventDefault()
                 if (dragId) moveDeal(dragId, stage.key)
               }}
             >
-              {/* Column header */}
               <div className="p-3 border-b border-black/5">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">{stage.label}</span>
@@ -120,12 +240,9 @@ export default function PipelineBoard({
                     {stageDeals.length}
                   </span>
                 </div>
-                {totalValue > 0 && (
-                  <div className="text-xs text-gray-500 font-medium">{fmt.currency(totalValue)}</div>
-                )}
+                {totalValue > 0 && <div className="text-xs text-gray-500 font-medium">{fmt.currency(totalValue)}</div>}
               </div>
 
-              {/* Cards */}
               <div className="p-2 space-y-2 flex-1 min-h-[200px]">
                 {stageDeals.map((deal) => (
                   <DealCard
@@ -135,9 +252,7 @@ export default function PipelineBoard({
                     onDragEnd={() => setDragId(null)}
                   />
                 ))}
-                {stageDeals.length === 0 && (
-                  <div className="text-center py-8 text-xs text-gray-400">Drop deals here</div>
-                )}
+                {stageDeals.length === 0 && <div className="text-center py-8 text-xs text-gray-400">Drop deals here</div>}
               </div>
             </div>
           )
@@ -157,46 +272,36 @@ function DealCard({
   onDragEnd: () => void
 }) {
   const contact = deal.contacts
-  const name    = contact ? fmt.name(contact.first_name, contact.last_name) : 'Unknown'
+  const name = contact ? fmt.name(contact.first_name, contact.last_name) : 'Unknown'
 
   return (
     <div
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      className="bg-white rounded-xl border border-gray-200 p-3 shadow-sm cursor-grab active:cursor-grabbing
-                 hover:shadow-md hover:border-gold-300 transition-base group"
+      className="bg-white rounded-xl border border-gray-200 p-3 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md hover:border-gold-300 transition-base group"
     >
-      {/* Loan program badge */}
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs bg-gold-50 text-gold-700 border border-gold-200 px-2 py-0.5 rounded-full font-medium">
           {fmt.loanProgram(deal.loan_program)}
         </span>
-        {deal.loan_amount && (
-          <span className="text-xs font-bold text-dark-800">{fmt.currency(deal.loan_amount)}</span>
-        )}
+        {deal.loan_amount && <span className="text-xs font-bold text-dark-800">{fmt.currency(deal.loan_amount)}</span>}
       </div>
 
-      {/* Contact name */}
       <Link href={`/deals/${deal.id}`} className="block">
         <div className="text-sm font-semibold text-dark-800 group-hover:text-gold-600 transition-base">{name}</div>
-        {deal.property_address && (
-          <div className="text-xs text-gray-400 mt-0.5 truncate">{deal.property_address}</div>
-        )}
+        {deal.property_address && <div className="text-xs text-gray-400 mt-0.5 truncate">{deal.property_address}</div>}
       </Link>
 
-      {/* Footer */}
       <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-50">
         <span className="text-xs text-gray-400">{fmt.relativeTime(deal.updated_at)}</span>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-base">
           {contact?.phone && (
-            <a href={`/communications?tab=call&contact=${contact.id}`}
-               className="p-1 text-gray-400 hover:text-gold-500 rounded-lg transition-base" title="Call">
+            <a href={`/communications?tab=call&contact=${contact.id}`} className="p-1 text-gray-400 hover:text-gold-500 rounded-lg transition-base" title="Call">
               <Phone size={12} />
             </a>
           )}
-          <Link href={`/deals/${deal.id}`}
-            className="p-1 text-gray-400 hover:text-gold-500 rounded-lg transition-base" title="View">
+          <Link href={`/deals/${deal.id}`} className="p-1 text-gray-400 hover:text-gold-500 rounded-lg transition-base" title="View">
             <ArrowRight size={12} />
           </Link>
         </div>

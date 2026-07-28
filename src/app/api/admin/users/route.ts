@@ -148,7 +148,7 @@ export async function POST(req: NextRequest) {
           lead_source: 'admin_created',
           portal_user_id: userId,
           organization_id: organizationId,
-          stage: 'new_inquiry',
+          stage: 'new_lead',
         })
         .select('id')
         .single()

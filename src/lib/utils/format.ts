@@ -48,6 +48,8 @@ export const fmt = {
 
   stage: (s?: string) => {
     const map: Record<string, string> = {
+      new_lead: 'New lead', pending_lead: 'Pending lead',
+      closed_deal: 'Closed deal',
       new_inquiry: 'New Inquiry', contacted: 'Contacted',
       just_searching: 'Just Searching', dead_lead: 'Dead Lead',
       in_progress: 'In Progress', funded: 'Funded',
@@ -68,6 +70,9 @@ export function cn(...classes: (string | undefined | null | false)[]) {
 }
 
 export const STAGE_COLORS: Record<string, string> = {
+  new_lead:       'bg-blue-100 text-blue-700',
+  pending_lead:   'bg-yellow-100 text-yellow-700',
+  closed_deal:    'bg-green-100 text-green-700',
   new_inquiry:    'bg-blue-100 text-blue-700',
   contacted:      'bg-purple-100 text-purple-700',
   just_searching: 'bg-yellow-100 text-yellow-700',

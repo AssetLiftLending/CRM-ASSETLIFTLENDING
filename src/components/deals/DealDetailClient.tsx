@@ -16,7 +16,7 @@ type Task = Record<string, any>
 
 interface Props { deal: Deal; docs: Doc[]; tasks: Task[] }
 
-const STAGES = ['new_inquiry','contacted','just_searching','dead_lead','in_progress','funded'] as const
+const STAGES = ['new_lead','pending_lead','dead_lead','in_progress','closed_deal'] as const
 
 const LOAN_PROGRAMS = [
   { key: 'fix_flip',    label: 'Fix & Flip' },
@@ -43,7 +43,7 @@ export default function DealDetailClient({ deal, docs, tasks }: Props) {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
-    stage:          deal.stage ?? 'new_inquiry',
+    stage:          deal.stage ?? 'new_lead',
     loan_program:   deal.loan_program ?? 'fix_flip',
     loan_amount:    deal.loan_amount ?? '',
     purchase_price: deal.purchase_price ?? '',

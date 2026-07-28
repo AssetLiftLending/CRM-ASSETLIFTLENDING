@@ -133,7 +133,7 @@ export default function DealDetailClient({ deal, docs, tasks }: Props) {
   const stageIdx = STAGES.indexOf(form.stage as typeof STAGES[number])
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6 max-w-7xl mx-auto">
       {/* Back */}
       <div className="flex items-center gap-3">
         <Link href={`/contacts/${deal.contact_id}`} className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gold-600 transition-colors">
@@ -143,19 +143,67 @@ export default function DealDetailClient({ deal, docs, tasks }: Props) {
         <span className="text-sm text-gray-500">Deal</span>
       </div>
 
-      {/* Header */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-        <div className="flex items-start justify-between mb-5">
+      {/* Opportunity editor */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="flex items-start justify-between border-b border-gray-100 p-6">
           <div>
-            <h1 className="text-xl font-black text-dark-800">{fmt.loanProgram(form.loan_program)} — {name}</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
-              {form.property_address || 'No property address yet'} &nbsp;·&nbsp; Created {fmt.date(deal.created_at)}
-            </p>
+            <h1 className="text-xl font-black text-dark-800">Edit &quot;{name}&quot;</h1>
+            <p className="text-sm text-gray-500 mt-2">Add and edit opportunity details, tasks, notes, documents, payments and appointments.</p>
           </div>
           <span className={`text-sm px-3 py-1 rounded-full font-bold ${STAGE_COLORS[form.stage] ?? 'bg-gray-100 text-gray-600'}`}>
             {fmt.stage(form.stage)}
           </span>
         </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr]">
+          <aside className="border-b border-gray-100 bg-gray-50 p-4 lg:border-b-0 lg:border-r">
+            <nav className="space-y-1">
+              {['Opportunity details', 'Contact details', 'Book or update appointment', 'Tasks', 'Notes', 'Payments', 'Associated objects'].map((item, index) => (
+                <a
+                  key={item}
+                  href={index <= 1 ? '#opportunity-details' : item === 'Tasks' ? '#deal-tasks' : item === 'Payments' ? '#payments' : '#documents'}
+                  className={`block rounded-lg px-3 py-2 text-sm font-medium ${index === 0 ? 'bg-blue-50 text-blue-700' : 'text-gray-500 hover:bg-white hover:text-dark-800'}`}
+                >
+                  {item}
+                </a>
+              ))}
+            </nav>
+            <div className="mt-10 border-t border-gray-200 pt-4 text-xs text-gray-500">
+              <div className="font-semibold text-dark-800">Created by: Workflow</div>
+              <div className="mt-1">Created on: {fmt.dateTime(deal.created_at)}</div>
+              <div className="mt-1 truncate">Audit log: {deal.id}</div>
+            </div>
+          </aside>
+
+          <div id="opportunity-details" className="p-6">
+            <section className="mb-7">
+              <div className="mb-4 flex items-center justify-between border-b border-gray-100 pb-3">
+                <h2 className="text-base font-bold text-dark-800 flex items-center gap-2">
+                  <User size={16} className="text-gray-500" /> Contact details
+                </h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-semibold text-gray-600 mb-1.5 block">Primary contact name</label>
+                  <input value={name} readOnly className="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-3 text-sm text-dark-800" />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-gray-600 mb-1.5 block">Primary email</label>
+                  <input value={contact?.email ?? ''} readOnly className="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-3 text-sm text-dark-800" />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-gray-600 mb-1.5 block">Primary phone</label>
+                  <input value={contact?.phone ?? ''} readOnly className="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-3 text-sm text-dark-800" />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-gray-600 mb-1.5 block">Additional contacts</label>
+                  <input value="" readOnly placeholder="Add additional contacts" className="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-3 text-sm text-gray-400" />
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <h2 className="mb-4 border-b border-gray-100 pb-3 text-base font-bold text-dark-800">Opportunity details</h2>
 
         {/* Stage Pipeline */}
         <div className="flex items-center gap-1 mb-6 overflow-x-auto">
@@ -273,10 +321,19 @@ export default function DealDetailClient({ deal, docs, tasks }: Props) {
           </div>
         </div>
 
+            </section>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 border-t border-gray-100 bg-white p-5">
+          <Link href="/pipeline" className="rounded-xl border border-gray-200 px-6 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50">
+            Cancel
+          </Link>
         <button onClick={saveDeal} disabled={saving}
           className="bg-gold-500 hover:bg-gold-400 disabled:opacity-50 text-dark-800 font-bold px-6 py-2.5 rounded-xl text-sm">
-          {saving ? 'Saving…' : 'Save Deal'}
+          {saving ? 'Updating...' : 'Update'}
         </button>
+        </div>
       </div>
 
       {/* Document Checklist */}
@@ -342,7 +399,7 @@ export default function DealDetailClient({ deal, docs, tasks }: Props) {
       </div>
 
       {/* Appraisal Payment */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+      <div id="payments" className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
         <h2 className="font-bold text-dark-800 mb-4 flex items-center gap-2">
           <CreditCard size={16} className="text-gold-500" /> Appraisal Payment
         </h2>
@@ -388,7 +445,7 @@ export default function DealDetailClient({ deal, docs, tasks }: Props) {
 
       {/* Tasks */}
       {tasks.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div id="deal-tasks" className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="p-5 border-b border-gray-100">
             <h2 className="font-bold text-dark-800 flex items-center gap-2"><Clock size={16} className="text-gold-500" /> Deal Tasks</h2>
           </div>

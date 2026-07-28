@@ -4,7 +4,10 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { fmt } from '@/lib/utils/format'
 import toast from 'react-hot-toast'
-import { Phone, ArrowRight, Settings, Plus, Trash2, MessageSquare, Mail, MessageCircle, FileText, Play } from 'lucide-react'
+import {
+  Phone, ArrowRight, Settings, Plus, Trash2, MessageSquare, Mail,
+  MessageCircle, FileText, Play, Tag, CheckSquare, CalendarPlus
+} from 'lucide-react'
 
 const FALLBACK_STAGES = [
   { id: 'new_lead', key: 'new_lead', label: 'New lead', sort_order: 1, color: 'border-blue-300 bg-blue-50', is_closed: false },
@@ -16,6 +19,7 @@ const FALLBACK_STAGES = [
 
 interface Deal {
   id: string
+  contact_id?: string
   title?: string
   stage: string
   loan_program: string
@@ -64,11 +68,15 @@ export default function PipelineBoard({
   profiles,
   stages: initialStages,
   communications,
+  documentCounts,
+  taskCounts,
 }: {
   deals: Deal[]
   profiles: Array<{ id: string; full_name: string | null }>
   stages: Stage[]
   communications: Communication[]
+  documentCounts: Record<string, number>
+  taskCounts: Record<string, number>
 }) {
   const [deals, setDeals] = useState<Deal[]>(initialDeals)
   const [stages, setStages] = useState<Stage[]>(
@@ -272,6 +280,8 @@ export default function PipelineBoard({
                     key={deal.id}
                     deal={deal}
                     communications={communications.filter((comm) => comm.contact_id === deal.contacts?.id)}
+                    documentCount={documentCounts[deal.id] ?? 0}
+                    taskCount={taskCounts[deal.id] ?? 0}
                     onDragStart={() => setDragId(deal.id)}
                     onDragEnd={() => setDragId(null)}
                   />
@@ -289,11 +299,15 @@ export default function PipelineBoard({
 function DealCard({
   deal,
   communications,
+  documentCount,
+  taskCount,
   onDragStart,
   onDragEnd,
 }: {
   deal: Deal
   communications: Communication[]
+  documentCount: number
+  taskCount: number
   onDragStart: () => void
   onDragEnd: () => void
 }) {
@@ -324,20 +338,6 @@ function DealCard({
         {deal.property_address && <div className="text-xs text-gray-400 mt-0.5 truncate">{deal.property_address}</div>}
       </Link>
 
-      <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-50">
-        <span className="text-xs text-gray-400">{fmt.relativeTime(deal.updated_at)}</span>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-base">
-          {contact?.phone && (
-            <a href={`/communications?tab=call&contact=${contact.id}`} className="p-1 text-gray-400 hover:text-gold-500 rounded-lg transition-base" title="Call">
-              <Phone size={12} />
-            </a>
-          )}
-          <Link href={`/deals/${deal.id}`} className="p-1 text-gray-400 hover:text-gold-500 rounded-lg transition-base" title="View">
-            <ArrowRight size={12} />
-          </Link>
-        </div>
-      </div>
-
       {contact && (
         <div className="mt-2 rounded-xl border border-gold-200 bg-gold-50">
           <button
@@ -365,6 +365,18 @@ function DealCard({
         </div>
       )}
 
+      <div className="mt-3 flex items-center justify-between border-t border-gray-50 pt-2">
+        <span className="text-xs text-gray-400">{fmt.relativeTime(deal.updated_at)}</span>
+        <div className="flex items-center gap-1.5">
+          <ActionIcon href={contact?.phone ? `/communications?tab=call&contact=${contact.id}` : undefined} title="Call" icon={<Phone size={14} />} />
+          <ActionIcon onClick={() => setShowComms((value) => !value)} title="Communications" icon={<MessageSquare size={14} />} count={communications.length} />
+          <ActionIcon href={`/contacts/${deal.contact_id ?? contact?.id}`} title="Contact tags" icon={<Tag size={14} />} />
+          <ActionIcon href={`/deals/${deal.id}`} title="Documents" icon={<FileText size={14} />} count={documentCount} />
+          <ActionIcon href={`/tasks?deal=${deal.id}`} title="Tasks" icon={<CheckSquare size={14} />} count={taskCount} />
+          <ActionIcon href={`/calendar?deal=${deal.id}`} title="Appointment" icon={<CalendarPlus size={14} />} />
+        </div>
+      </div>
+
       {showComms && contact && (
         <div className="mt-2 rounded-xl border border-gray-100 bg-gray-50 p-2">
           <div className="mb-2 flex items-center justify-between">
@@ -388,6 +400,38 @@ function DealCard({
       )}
     </div>
   )
+}
+
+function ActionIcon({
+  href,
+  title,
+  icon,
+  count,
+  onClick,
+}: {
+  href?: string
+  title: string
+  icon: React.ReactNode
+  count?: number
+  onClick?: () => void
+}) {
+  const className = 'relative flex h-7 w-7 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gold-600 transition-base'
+  const content = (
+    <>
+      {icon}
+      {count ? (
+        <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-sky-200 px-1 text-[10px] font-bold text-sky-700 ring-1 ring-white">
+          {count}
+        </span>
+      ) : null}
+    </>
+  )
+
+  if (href) {
+    return <Link href={href} className={className} title={title}>{content}</Link>
+  }
+
+  return <button type="button" onClick={onClick} className={className} title={title}>{content}</button>
 }
 
 function CommunicationRow({ communication }: { communication: Communication }) {

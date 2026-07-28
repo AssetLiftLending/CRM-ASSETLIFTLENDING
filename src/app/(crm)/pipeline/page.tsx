@@ -30,18 +30,35 @@ export default async function PipelinePage() {
 
   const contactIds = Array.from(new Set(normalizedDeals.map((deal) => deal.contacts?.id).filter(Boolean)))
 
-  const { data: communications } = contactIds.length
-    ? await supabase
-      .from('communications')
-      .select(`
-        id, contact_id, deal_id, type, direction, subject, body, snippet,
-        duration_secs, recording_url, transcript, ai_summary, status,
-        from_number, to_number, from_email, to_email, created_at
-      `)
-      .in('contact_id', contactIds)
-      .order('created_at', { ascending: false })
-      .limit(1000)
-    : { data: [] }
+  const dealIds = normalizedDeals.map((deal) => deal.id)
+
+  const [{ data: communications }, { data: documents }, { data: tasks }] = await Promise.all([
+    contactIds.length
+      ? supabase
+        .from('communications')
+        .select(`
+          id, contact_id, deal_id, type, direction, subject, body, snippet,
+          duration_secs, recording_url, transcript, ai_summary, status,
+          from_number, to_number, from_email, to_email, created_at
+        `)
+        .in('contact_id', contactIds)
+        .order('created_at', { ascending: false })
+        .limit(1000)
+      : Promise.resolve({ data: [] }),
+    dealIds.length
+      ? supabase.from('documents').select('id, deal_id, status').in('deal_id', dealIds)
+      : Promise.resolve({ data: [] }),
+    dealIds.length
+      ? supabase.from('tasks').select('id, deal_id, status').in('deal_id', dealIds)
+      : Promise.resolve({ data: [] }),
+  ])
+
+  const documentCounts = Object.fromEntries(
+    normalizedDeals.map((deal) => [deal.id, (documents ?? []).filter((doc) => doc.deal_id === deal.id).length])
+  )
+  const taskCounts = Object.fromEntries(
+    normalizedDeals.map((deal) => [deal.id, (tasks ?? []).filter((task) => task.deal_id === deal.id && task.status !== 'completed').length])
+  )
 
   return (
     <PipelineBoard
@@ -49,6 +66,8 @@ export default async function PipelinePage() {
       profiles={profiles ?? []}
       stages={stages ?? []}
       communications={communications ?? []}
+      documentCounts={documentCounts}
+      taskCounts={taskCounts}
     />
   )
 }

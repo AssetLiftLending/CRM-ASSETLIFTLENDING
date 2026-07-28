@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+:root {
+  --gold: #D4A017;
+  --black: #1A1A1A;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: #F8F7F5;
+  color: #1A1A1A;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #D4A017; border-radius: 3px; }
+
+/* Pipeline kanban drag ghost */
+.drag-ghost { opacity: 0.4; }
+
+/* Transitions */
+.transition-base { transition: all 0.15s ease; }

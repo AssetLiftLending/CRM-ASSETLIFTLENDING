@@ -40,7 +40,7 @@ export default async function BrokerPage() {
     .select(`
       *,
       contacts (id, first_name, last_name, email, phone),
-      documents (id, doc_type, status, created_at)
+      documents (id, doc_type, status, file_name, file_url, uploaded_by, uploaded_at, created_at)
     `)
     .eq('broker_id', user.id)
     .order('created_at', { ascending: false })

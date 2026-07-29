@@ -36,10 +36,10 @@ const DOC_TYPES = [
   { key: 'scope_of_work', label: 'Scope of Work' },
   { key: 'reo_experience', label: 'REO Experience Form' },
   { key: 'llc_documents', label: 'LLC Documents' },
-  { key: 'insurance', label: 'Insurance Agent Info' },
-  { key: 'title_company', label: 'Title Company Info' },
+  { key: 'insurance_agent_info', label: 'Insurance Agent Info' },
+  { key: 'title_company_info', label: 'Title Company Info' },
   { key: 'ssn', label: 'Social Security Number' },
-  { key: 'appraisal', label: 'Appraisal (if available)' },
+  { key: 'appraisal_payment', label: 'Appraisal Payment' },
 ]
 
 type Deal = {
@@ -56,8 +56,8 @@ type Deal = {
   ltv: number | null
   term_months: number | null
   created_at: string
-  contacts: { first_name: string; last_name: string; email: string; phone: string | null }
-  documents: { doc_type: string; status: string }[]
+  contacts: { id: string; first_name: string; last_name: string; email: string; phone: string | null }
+  documents: { doc_type: string; status: string; file_name?: string | null; file_url?: string | null; uploaded_by?: string | null; uploaded_at?: string | null }[]
 }
 
 export default function BrokerDashboard({
@@ -280,9 +280,28 @@ export default function BrokerDashboard({
                         status === 'approved' ? 'bg-green-500' :
                         status === 'pending' ? 'bg-yellow-500' : 'bg-gray-600'
                       }`} />
-                      <span className="text-sm text-gray-300">{label}</span>
+                      <div>
+                        <span className="text-sm text-gray-300">{label}</span>
+                        {doc?.file_name && (
+                          <div className="text-xs text-gray-500">
+                            {doc.file_name}
+                            {doc.uploaded_by ? ` - uploaded by ${doc.uploaded_by}` : ''}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      {doc?.file_url && (
+                        <a
+                          href={doc.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(event) => event.stopPropagation()}
+                          className="text-xs px-2 py-0.5 rounded border border-gray-700 text-gray-400 hover:border-[#D4A017] hover:text-[#D4A017] transition-colors"
+                        >
+                          View
+                        </a>
+                      )}
                       <span className={`text-xs px-2 py-0.5 rounded-full ${
                         status === 'approved' ? 'bg-green-900/40 text-green-400' :
                         status === 'pending' ? 'bg-yellow-900/40 text-yellow-400' :
@@ -295,7 +314,7 @@ export default function BrokerDashboard({
                           <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                             onChange={e => {
                               const f = e.target.files?.[0]
-                              if (f) uploadDoc(selectedDeal.id, selectedDeal.contacts as any, key, f)
+                              if (f) uploadDoc(selectedDeal.id, selectedDeal.contacts.id, key, f)
                             }} />
                           <span className={`text-xs px-2 py-0.5 rounded border border-gray-700 text-gray-400 hover:border-[#D4A017] hover:text-[#D4A017] transition-colors ${uploadingDoc === key ? 'opacity-50' : ''}`}>
                             {uploadingDoc === key ? '…' : 'Upload'}

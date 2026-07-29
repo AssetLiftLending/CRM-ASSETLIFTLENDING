@@ -11,7 +11,9 @@ export async function POST(req: NextRequest) {
     const contactId = form.get('contact_id') as string
     const docType   = form.get('doc_type') as string
 
-    if (!file || !docType) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+    if (!file || !docType || !dealId || !contactId) {
+      return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+    }
 
     const authClient = createClient()
     const { data: { user } } = await authClient.auth.getUser()
@@ -20,14 +22,13 @@ export async function POST(req: NextRequest) {
     const supabase  = createAdminClient()
     const [{ data: profile }, { data: deal }] = await Promise.all([
       supabase.from('profiles').select('role').eq('id', user.id).single(),
-      dealId
-        ? supabase.from('deals').select('id, broker_id').eq('id', dealId).single()
-        : Promise.resolve({ data: null } as any),
+      supabase.from('deals').select('id, contact_id, broker_id').eq('id', dealId).eq('contact_id', contactId).single(),
     ])
 
     const isStaff = Boolean(profile && STAFF_ROLES.includes(profile.role))
     const isBrokerOnDeal = Boolean(profile?.role === 'broker' && deal?.broker_id === user.id)
     if (!isStaff && !isBrokerOnDeal) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!deal) return NextResponse.json({ error: 'Deal not found for this contact' }, { status: 404 })
 
     const { data: contact } = await supabase
       .from('contacts')
@@ -65,6 +66,7 @@ export async function POST(req: NextRequest) {
         name:       file.name,
         deal_id:    dealId,
         contact_id: contactId,
+        organization_id: contact.organization_id,
         doc_type:   docType,
         file_name:  file.name,
         file_url:   publicUrl,

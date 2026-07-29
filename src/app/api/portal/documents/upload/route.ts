@@ -14,19 +14,30 @@ export async function POST(req: NextRequest) {
     const contactId = form.get('contact_id') as string
     const docType   = form.get('doc_type') as string
 
-    if (!file || !docType) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+    if (!file || !docType || !dealId || !contactId) {
+      return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+    }
 
     const supabase = createAdminClient()
 
     // Verify the contact matches the logged-in user's email
-    const { data: contact } = await supabase
+    const [{ data: contact }, { data: deal }] = await Promise.all([
+      supabase
       .from('contacts')
       .select('id, organization_id')
       .eq('id', contactId)
       .eq('email', user.email)
-      .single()
+      .single(),
+      supabase
+        .from('deals')
+        .select('id, contact_id, organization_id, broker_id')
+        .eq('id', dealId)
+        .eq('contact_id', contactId)
+        .single(),
+    ])
 
     if (!contact) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!deal) return NextResponse.json({ error: 'Deal not found for this borrower' }, { status: 404 })
 
     const bytes  = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
@@ -38,6 +49,7 @@ export async function POST(req: NextRequest) {
       organization_id: contact.organization_id,
       contact_id: contactId,
       portal_user_id: user.id,
+      broker_id: deal.broker_id,
       storage_prefix: folderPrefix,
     }, { onConflict: 'organization_id,contact_id' })
 
@@ -55,6 +67,7 @@ export async function POST(req: NextRequest) {
         name:       file.name,
         deal_id:    dealId,
         contact_id: contactId,
+        organization_id: contact.organization_id,
         doc_type:   docType,
         file_name:  file.name,
         file_url:   publicUrl,

@@ -67,6 +67,18 @@ export default function DealDetailClient({ deal, docs, tasks }: Props) {
     notes:          deal.notes ?? '',
   })
   const [uploading, setUploading] = useState<string | null>(null)
+  const [savingDocInfo, setSavingDocInfo] = useState(false)
+  const [docInfo, setDocInfo] = useState({
+    title_company_name: deal.title_company_name ?? '',
+    title_company_contact_name: '',
+    title_company_phone: deal.title_company_phone ?? '',
+    title_company_email: deal.title_company_email ?? '',
+    insurance_agent_name: deal.insurance_agent_name ?? '',
+    insurance_agent_contact_name: '',
+    insurance_agent_phone: deal.insurance_agent_phone ?? '',
+    insurance_agent_email: deal.insurance_agent_email ?? '',
+    ssn: deal.contacts?.ssn_encrypted ?? '',
+  })
   const [appraisalAmount, setAppraisalAmount] = useState(650)
   const [paymentLoading, setPaymentLoading] = useState(false)
 
@@ -116,10 +128,41 @@ export default function DealDetailClient({ deal, docs, tasks }: Props) {
     fd.append('deal_id', deal.id)
     fd.append('contact_id', deal.contact_id)
     fd.append('doc_type', docType)
+    if (docType === 'title_company_info') {
+      fd.append('company_name', docInfo.title_company_name)
+      fd.append('contact_name', docInfo.title_company_contact_name)
+      fd.append('contact_phone', docInfo.title_company_phone)
+      fd.append('contact_email', docInfo.title_company_email)
+    }
+    if (docType === 'insurance_agent_info') {
+      fd.append('company_name', docInfo.insurance_agent_name)
+      fd.append('contact_name', docInfo.insurance_agent_contact_name)
+      fd.append('contact_phone', docInfo.insurance_agent_phone)
+      fd.append('contact_email', docInfo.insurance_agent_email)
+    }
+    if (docType === 'ssn') {
+      fd.append('ssn', docInfo.ssn)
+    }
     const res = await fetch('/api/documents/upload', { method: 'POST', body: fd })
     setUploading(null)
     if (res.ok) { toast.success('Document uploaded'); router.refresh() }
     else toast.error('Upload failed')
+  }
+
+  async function saveDocumentInfo() {
+    setSavingDocInfo(true)
+    const res = await fetch(`/api/deals/${deal.id}/document-info`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(docInfo),
+    })
+    setSavingDocInfo(false)
+    if (res.ok) { toast.success('Document info saved'); router.refresh() }
+    else toast.error('Save failed')
+  }
+
+  function setDocField(field: keyof typeof docInfo, value: string) {
+    setDocInfo((current) => ({ ...current, [field]: value }))
   }
 
   async function initiateAppraisalPayment() {
@@ -365,7 +408,7 @@ export default function DealDetailClient({ deal, docs, tasks }: Props) {
       </div>
 
       {/* Document Checklist */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div id="documents" className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="p-5 border-b border-gray-100">
           <h2 className="font-bold text-dark-800 flex items-center gap-2">
             <FileText size={16} className="text-gold-500" /> Document Checklist
@@ -387,9 +430,13 @@ export default function DealDetailClient({ deal, docs, tasks }: Props) {
             const doc = docMap[dt.key]
             const approved = doc?.status === 'approved'
             const pending  = doc?.status === 'pending'
+            const isTitleInfo = dt.key === 'title_company_info'
+            const isInsuranceInfo = dt.key === 'insurance_agent_info'
+            const isSsnInfo = dt.key === 'ssn'
+            const hasInlineInfo = isTitleInfo || isInsuranceInfo || isSsnInfo
 
             return (
-              <div key={dt.key} className="flex items-center gap-4 p-4">
+              <div key={dt.key} className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center">
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0
                   ${approved ? 'bg-green-100 text-green-600' : pending ? 'bg-yellow-100 text-yellow-600' : 'bg-gray-100 text-gray-300'}`}>
                   {approved ? <CheckCircle size={14} /> : pending ? <Clock size={14} /> : <Circle size={14} />}
@@ -399,8 +446,48 @@ export default function DealDetailClient({ deal, docs, tasks }: Props) {
                   <p className={`text-sm font-medium ${approved ? 'text-green-700' : 'text-dark-800'}`}>{dt.label}</p>
                   {doc?.file_name && <p className="text-xs text-gray-400">{doc.file_name}</p>}
                   {doc?.notes && <p className="text-xs text-gray-400 italic">{doc.notes}</p>}
+                  {hasInlineInfo && (
+                    <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3 xl:grid-cols-4">
+                      {isTitleInfo && (
+                        <>
+                          <input value={docInfo.title_company_name} onChange={e => setDocField('title_company_name', e.target.value)}
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gold-500"
+                            placeholder="Company or contact name" />
+                          <input value={docInfo.title_company_phone} onChange={e => setDocField('title_company_phone', e.target.value)}
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gold-500"
+                            placeholder="Phone number" />
+                          <input type="email" value={docInfo.title_company_email} onChange={e => setDocField('title_company_email', e.target.value)}
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gold-500"
+                            placeholder="Email" />
+                        </>
+                      )}
+                      {isInsuranceInfo && (
+                        <>
+                          <input value={docInfo.insurance_agent_name} onChange={e => setDocField('insurance_agent_name', e.target.value)}
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gold-500"
+                            placeholder="Company or agent name" />
+                          <input value={docInfo.insurance_agent_phone} onChange={e => setDocField('insurance_agent_phone', e.target.value)}
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gold-500"
+                            placeholder="Phone number" />
+                          <input type="email" value={docInfo.insurance_agent_email} onChange={e => setDocField('insurance_agent_email', e.target.value)}
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gold-500"
+                            placeholder="Email" />
+                        </>
+                      )}
+                      {isSsnInfo && (
+                        <input value={docInfo.ssn} onChange={e => setDocField('ssn', e.target.value)}
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gold-500"
+                          placeholder="Social Security Number" />
+                      )}
+                      <button type="button" onClick={saveDocumentInfo} disabled={savingDocInfo}
+                        className="rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold text-gray-600 hover:border-gold-400 hover:text-gold-700 disabled:opacity-50">
+                        {savingDocInfo ? 'Saving...' : 'Save Info'}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
+                <div className="flex items-center gap-2 self-start lg:self-center">
                 {approved && (
                   <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">Approved</span>
                 )}
@@ -420,6 +507,7 @@ export default function DealDetailClient({ deal, docs, tasks }: Props) {
                     }} />
                   </label>
                 )}
+                </div>
               </div>
             )
           })}
@@ -506,6 +594,17 @@ function TermSheetPanel({ deal, onSaved }: { deal: Deal; onSaved: () => void }) 
   const [points, setPoints] = useState(deal.points ?? '')
   const [ltv, setLtv] = useState(deal.ltv ?? '')
   const [termMonths, setTermMonths] = useState(deal.term_months ?? '')
+  const [loanAmount, setLoanAmount] = useState(deal.loan_amount ?? '')
+  const [purchasePrice, setPurchasePrice] = useState(deal.purchase_price ?? '')
+  const [rehabAmount, setRehabAmount] = useState(deal.rehab_amount ?? '')
+  const [afterRepairValue, setAfterRepairValue] = useState(deal.after_repair_value ?? deal.arv ?? '')
+  const [originationFee, setOriginationFee] = useState('')
+  const [appraisalFee, setAppraisalFee] = useState(deal.appraisal_amount ?? '')
+  const [drawSchedule, setDrawSchedule] = useState('100% of approved rehab funded through draws after verified progress.')
+  const [expirationDate, setExpirationDate] = useState('')
+  const [specialConditions, setSpecialConditions] = useState('Final approval is subject to underwriting, valuation, title, insurance, entity review, satisfactory documentation, and Asset Lift Lending credit approval.')
+  const [emailBorrower, setEmailBorrower] = useState(true)
+  const [emailBroker, setEmailBroker] = useState(Boolean(deal.broker_id))
   const [file, setFile] = useState<File | null>(null)
 
   const hasTerms = deal.rate || deal.term_sheet_url
@@ -518,6 +617,17 @@ function TermSheetPanel({ deal, onSaved }: { deal: Deal; onSaved: () => void }) 
     if (points) fd.append('points', String(points))
     if (ltv) fd.append('ltv', String(ltv))
     if (termMonths) fd.append('term_months', String(termMonths))
+    if (loanAmount) fd.append('loan_amount', String(loanAmount))
+    if (purchasePrice) fd.append('purchase_price', String(purchasePrice))
+    if (rehabAmount) fd.append('rehab_amount', String(rehabAmount))
+    if (afterRepairValue) fd.append('after_repair_value', String(afterRepairValue))
+    if (originationFee) fd.append('origination_fee', String(originationFee))
+    if (appraisalFee) fd.append('appraisal_fee', String(appraisalFee))
+    if (drawSchedule) fd.append('draw_schedule', drawSchedule)
+    if (expirationDate) fd.append('expiration_date', expirationDate)
+    if (specialConditions) fd.append('special_conditions', specialConditions)
+    fd.append('email_borrower', String(emailBorrower))
+    fd.append('email_broker', String(emailBroker))
     const res = await fetch(`/api/deals/${deal.id}/terms`, { method: 'POST', body: fd })
     setSaving(false)
     if (res.ok) { toast.success('Terms saved & borrower notified'); setOpen(false); onSaved() }
@@ -568,26 +678,55 @@ function TermSheetPanel({ deal, onSaved }: { deal: Deal; onSaved: () => void }) 
       {/* Edit form */}
       {open && (
         <div className="space-y-4 mt-2">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {[
+              { label: 'Loan Amount', value: loanAmount, set: setLoanAmount, placeholder: '350000' },
+              { label: 'Purchase Price', value: purchasePrice, set: setPurchasePrice, placeholder: '450000' },
+              { label: 'Rehab Budget', value: rehabAmount, set: setRehabAmount, placeholder: '75000' },
+              { label: 'ARV', value: afterRepairValue, set: setAfterRepairValue, placeholder: '650000' },
               { label: 'Interest Rate (%)', value: rate, set: setRate, placeholder: '12.5' },
               { label: 'Points', value: points, set: setPoints, placeholder: '2.5' },
               { label: 'LTV (%)', value: ltv, set: setLtv, placeholder: '75' },
               { label: 'Term (months)', value: termMonths, set: setTermMonths, placeholder: '12' },
+              { label: 'Origination Fee', value: originationFee, set: setOriginationFee, placeholder: 'Included in points' },
+              { label: 'Appraisal Fee', value: appraisalFee, set: setAppraisalFee, placeholder: '650' },
+              { label: 'Expiration Date', value: expirationDate, set: setExpirationDate, placeholder: '' },
             ].map(({ label, value, set, placeholder }) => (
               <div key={label}>
                 <label className="block text-xs text-gray-500 mb-1">{label}</label>
-                <input type="number" value={value} onChange={e => set(e.target.value)} placeholder={placeholder}
+                <input type={label === 'Expiration Date' ? 'date' : 'text'} value={value} onChange={e => set(e.target.value)} placeholder={placeholder}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gold-400" />
               </div>
             ))}
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Term Sheet PDF (optional)</label>
+            <label className="block text-xs text-gray-500 mb-1">Draw / Holdback Schedule</label>
+            <textarea value={drawSchedule} onChange={e => setDrawSchedule(e.target.value)} rows={2}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gold-400 resize-none" />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Special Conditions</label>
+            <textarea value={specialConditions} onChange={e => setSpecialConditions(e.target.value)} rows={3}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gold-400 resize-none" />
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700">
+              <input type="checkbox" checked={emailBorrower} onChange={e => setEmailBorrower(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-gold-500 focus:ring-gold-500" />
+              Email term sheet to client
+            </label>
+            <label className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700">
+              <input type="checkbox" checked={emailBroker} onChange={e => setEmailBroker(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-gold-500 focus:ring-gold-500" />
+              Email term sheet to broker
+            </label>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Custom Term Sheet PDF (optional override)</label>
             <label className="flex items-center gap-2 border-2 border-dashed border-gray-200 rounded-xl p-3 cursor-pointer hover:border-gold-300 transition-colors">
               <Upload size={15} className="text-gray-400" />
-              <span className="text-sm text-gray-500">{file ? file.name : 'Upload PDF / Word doc'}</span>
-              <input type="file" className="hidden" accept=".pdf,.doc,.docx" onChange={e => setFile(e.target.files?.[0] ?? null)} />
+              <span className="text-sm text-gray-500">{file ? file.name : 'Leave blank to generate an Asset Lift Lending PDF'}</span>
+              <input type="file" className="hidden" accept=".pdf" onChange={e => setFile(e.target.files?.[0] ?? null)} />
             </label>
           </div>
           <button onClick={handleSave} disabled={saving}

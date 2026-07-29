@@ -10,6 +10,11 @@ export async function POST(req: NextRequest) {
     const dealId    = form.get('deal_id') as string
     const contactId = form.get('contact_id') as string
     const docType   = form.get('doc_type') as string
+    const companyName = String(form.get('company_name') || '').trim()
+    const contactName = String(form.get('contact_name') || '').trim()
+    const contactPhone = String(form.get('contact_phone') || '').trim()
+    const contactEmail = String(form.get('contact_email') || '').trim()
+    const ssn = String(form.get('ssn') || '').trim()
 
     if (!file || !docType || !dealId || !contactId) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
@@ -37,6 +42,42 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (!contact) return NextResponse.json({ error: 'Contact not found' }, { status: 404 })
+
+    const dealUpdate: Record<string, string | null> = {}
+    if (docType === 'title_company_info') {
+      dealUpdate.title_company_name = companyName || contactName || null
+      dealUpdate.title_company_phone = contactPhone || null
+      dealUpdate.title_company_email = contactEmail || null
+      dealUpdate.title_company_contact = [
+        companyName && `Company: ${companyName}`,
+        contactName && `Contact: ${contactName}`,
+        contactPhone && `Phone: ${contactPhone}`,
+        contactEmail && `Email: ${contactEmail}`,
+      ].filter(Boolean).join('\n') || null
+    }
+    if (docType === 'insurance_agent_info') {
+      dealUpdate.insurance_agent_name = companyName || contactName || null
+      dealUpdate.insurance_agent_phone = contactPhone || null
+      dealUpdate.insurance_agent_email = contactEmail || null
+      dealUpdate.insurance_agent_contact = [
+        companyName && `Company: ${companyName}`,
+        contactName && `Contact: ${contactName}`,
+        contactPhone && `Phone: ${contactPhone}`,
+        contactEmail && `Email: ${contactEmail}`,
+      ].filter(Boolean).join('\n') || null
+    }
+    if (Object.keys(dealUpdate).length > 0) {
+      await supabase
+        .from('deals')
+        .update({ ...dealUpdate, updated_at: new Date().toISOString() })
+        .eq('id', dealId)
+    }
+    if (docType === 'ssn' && ssn) {
+      await supabase
+        .from('contacts')
+        .update({ ssn_encrypted: ssn, updated_at: new Date().toISOString() })
+        .eq('id', contactId)
+    }
 
     const bytes     = await file.arrayBuffer()
     const buffer    = Buffer.from(bytes)

@@ -34,8 +34,8 @@ const DOC_TYPES = [
   { key: 'llc_documents',          label: 'LLC Documents' },
   { key: 'scope_of_work',          label: 'Scope of Work' },
   { key: 'reo_experience',         label: 'REO Experience Form' },
-  { key: 'title_company_info',     label: 'Title Company Contact' },
-  { key: 'insurance_agent_info',   label: 'Insurance Agent Contact' },
+  { key: 'title_company_info',     label: 'Title Company Contact & Quote' },
+  { key: 'insurance_agent_info',   label: 'Insurance Agent Contact & Quote' },
   { key: 'appraisal_payment',      label: 'Appraisal Payment' },
 ] as const
 
@@ -57,7 +57,13 @@ export default function DealDetailClient({ deal, docs, tasks }: Props) {
     exit_strategy:  deal.exit_strategy ?? '',
     close_date_target: deal.close_date_target ?? '',
     title_company:  deal.title_company_contact ?? '',
+    title_company_name: deal.title_company_name ?? '',
+    title_company_phone: deal.title_company_phone ?? '',
+    title_company_email: deal.title_company_email ?? '',
     insurance_agent: deal.insurance_agent_contact ?? '',
+    insurance_agent_name: deal.insurance_agent_name ?? '',
+    insurance_agent_phone: deal.insurance_agent_phone ?? '',
+    insurance_agent_email: deal.insurance_agent_email ?? '',
     notes:          deal.notes ?? '',
   })
   const [uploading, setUploading] = useState<string | null>(null)
@@ -88,7 +94,13 @@ export default function DealDetailClient({ deal, docs, tasks }: Props) {
         exit_strategy: form.exit_strategy || null,
         close_date_target: form.close_date_target || null,
         title_company_contact: form.title_company || null,
+        title_company_name: form.title_company_name || null,
+        title_company_phone: form.title_company_phone || null,
+        title_company_email: form.title_company_email || null,
         insurance_agent_contact: form.insurance_agent || null,
+        insurance_agent_name: form.insurance_agent_name || null,
+        insurance_agent_phone: form.insurance_agent_phone || null,
+        insurance_agent_email: form.insurance_agent_email || null,
         notes: form.notes || null,
       }),
     })
@@ -299,18 +311,34 @@ export default function DealDetailClient({ deal, docs, tasks }: Props) {
             Under contract
           </label>
 
-          <div>
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 block">Title Company Contact</label>
-            <input value={form.title_company} onChange={e => setForm(p => ({ ...p, title_company: e.target.value }))}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gold-500"
-              placeholder="Name, phone, email" />
+          <div className="col-span-3 rounded-2xl border border-gray-100 bg-gray-50 p-4">
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">Title Company Contact</label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <input value={form.title_company_name} onChange={e => setForm(p => ({ ...p, title_company_name: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gold-500"
+                placeholder="Company or contact name" />
+              <input value={form.title_company_phone} onChange={e => setForm(p => ({ ...p, title_company_phone: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gold-500"
+                placeholder="Phone number" />
+              <input type="email" value={form.title_company_email} onChange={e => setForm(p => ({ ...p, title_company_email: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gold-500"
+                placeholder="Email" />
+            </div>
           </div>
 
-          <div>
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 block">Insurance Agent Contact</label>
-            <input value={form.insurance_agent} onChange={e => setForm(p => ({ ...p, insurance_agent: e.target.value }))}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gold-500"
-              placeholder="Name, phone, email" />
+          <div className="col-span-3 rounded-2xl border border-gray-100 bg-gray-50 p-4">
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">Insurance Agent Contact</label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <input value={form.insurance_agent_name} onChange={e => setForm(p => ({ ...p, insurance_agent_name: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gold-500"
+                placeholder="Company or agent name" />
+              <input value={form.insurance_agent_phone} onChange={e => setForm(p => ({ ...p, insurance_agent_phone: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gold-500"
+                placeholder="Phone number" />
+              <input type="email" value={form.insurance_agent_email} onChange={e => setForm(p => ({ ...p, insurance_agent_email: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gold-500"
+                placeholder="Email" />
+            </div>
           </div>
 
           <div className="col-span-3">

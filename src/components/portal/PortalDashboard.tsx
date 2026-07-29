@@ -20,8 +20,8 @@ const DOC_TYPES = [
   { key: 'llc_documents',        label: 'LLC Documents' },
   { key: 'scope_of_work',        label: 'Scope of Work' },
   { key: 'reo_experience',       label: 'REO Experience Form' },
-  { key: 'title_company_info',   label: 'Title Company Contact' },
-  { key: 'insurance_agent_info', label: 'Insurance Agent Contact' },
+  { key: 'title_company_info',   label: 'Title Company Contact & Quote' },
+  { key: 'insurance_agent_info', label: 'Insurance Agent Contact & Quote' },
   { key: 'appraisal_payment',    label: 'Appraisal Payment' },
 ] as const
 
@@ -38,6 +38,7 @@ export default function PortalDashboard({ contact }: { contact: Contact }) {
   const supabase  = createBrowserClient()
   const [uploading, setUploading] = useState<string | null>(null)
   const [selectedDeal, setSelectedDeal] = useState<number>(0)
+  const [contactInfo, setContactInfo] = useState<Record<string, Record<string, string>>>({})
 
   const deals: any[] = contact.deals ?? []
   const deal  = deals[selectedDeal]
@@ -52,6 +53,16 @@ export default function PortalDashboard({ contact }: { contact: Contact }) {
     router.push('/portal/login')
   }
 
+  function setInfo(docType: string, field: string, value: string) {
+    setContactInfo((current) => ({
+      ...current,
+      [docType]: {
+        ...(current[docType] ?? {}),
+        [field]: value,
+      },
+    }))
+  }
+
   async function uploadDoc(docType: string, file: File) {
     if (!deal) return
     setUploading(docType)
@@ -60,6 +71,13 @@ export default function PortalDashboard({ contact }: { contact: Contact }) {
     fd.append('deal_id', deal.id)
     fd.append('contact_id', contact.id)
     fd.append('doc_type', docType)
+    if (docType === 'title_company_info' || docType === 'insurance_agent_info') {
+      const info = contactInfo[docType] ?? {}
+      fd.append('company_name', info.company_name ?? '')
+      fd.append('contact_name', info.contact_name ?? '')
+      fd.append('contact_phone', info.contact_phone ?? '')
+      fd.append('contact_email', info.contact_email ?? '')
+    }
     const res = await fetch('/api/portal/documents/upload', { method: 'POST', body: fd })
     setUploading(null)
     if (res.ok) { toast.success('Document uploaded! We\'ll review it shortly.'); router.refresh() }
@@ -211,9 +229,11 @@ export default function PortalDashboard({ contact }: { contact: Contact }) {
                   const doc      = docMap[dt.key]
                   const approved = doc?.status === 'approved'
                   const pending  = doc?.status === 'pending'
+                  const needsContactInfo = dt.key === 'title_company_info' || dt.key === 'insurance_agent_info'
+                  const info = contactInfo[dt.key] ?? {}
 
                   return (
-                    <div key={dt.key} className="flex items-center gap-4 p-4">
+                    <div key={dt.key} className="flex items-start gap-4 p-4">
                       <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0
                         ${approved ? 'bg-green-100 text-green-600' : pending ? 'bg-yellow-100 text-yellow-600' : 'bg-gray-100 text-gray-300'}`}>
                         {approved ? <CheckCircle size={14} /> : pending ? <Clock size={14} /> : <Circle size={14} />}
@@ -222,6 +242,35 @@ export default function PortalDashboard({ contact }: { contact: Contact }) {
                       <div className="flex-1">
                         <p className={`text-sm font-medium ${approved ? 'text-gray-400 line-through' : 'text-dark-800'}`}>{dt.label}</p>
                         {doc?.file_name && <p className="text-xs text-gray-400">{doc.file_name}</p>}
+                        {needsContactInfo && !approved && (
+                          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <input
+                              value={info.company_name ?? ''}
+                              onChange={(event) => setInfo(dt.key, 'company_name', event.target.value)}
+                              placeholder={dt.key === 'title_company_info' ? 'Title company name' : 'Insurance company name'}
+                              className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-gold-500"
+                            />
+                            <input
+                              value={info.contact_name ?? ''}
+                              onChange={(event) => setInfo(dt.key, 'contact_name', event.target.value)}
+                              placeholder="Contact name"
+                              className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-gold-500"
+                            />
+                            <input
+                              value={info.contact_phone ?? ''}
+                              onChange={(event) => setInfo(dt.key, 'contact_phone', event.target.value)}
+                              placeholder="Phone number"
+                              className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-gold-500"
+                            />
+                            <input
+                              type="email"
+                              value={info.contact_email ?? ''}
+                              onChange={(event) => setInfo(dt.key, 'contact_email', event.target.value)}
+                              placeholder="Email"
+                              className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-gold-500"
+                            />
+                          </div>
+                        )}
                       </div>
 
                       {approved && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">✓ Approved</span>}
@@ -233,7 +282,7 @@ export default function PortalDashboard({ contact }: { contact: Contact }) {
                             pending ? 'border-yellow-200 text-yellow-700 hover:border-yellow-400' :
                             'border-gold-300 text-gold-700 hover:bg-gold-50'}`}>
                           <Upload size={12} />
-                          {uploading === dt.key ? 'Uploading…' : doc ? 'Re-upload' : 'Upload'}
+                          {uploading === dt.key ? 'Uploading...' : doc ? (needsContactInfo ? 'Re-upload Quote' : 'Re-upload') : (needsContactInfo ? 'Upload Quote' : 'Upload')}
                           <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onChange={e => {
                             const file = e.target.files?.[0]
                             if (file) uploadDoc(dt.key, file)
@@ -284,3 +333,4 @@ export default function PortalDashboard({ contact }: { contact: Contact }) {
     </div>
   )
 }
+

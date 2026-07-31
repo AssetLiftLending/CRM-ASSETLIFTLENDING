@@ -170,6 +170,10 @@ export default async function DashboardPage() {
               className="flex items-center gap-2 text-sm text-white hover:text-gold-400 transition-base py-1">
               <Phone size={13} className="text-gold-500" /> Make a Call
             </Link>
+            <Link href="/settings?tab=Team"
+              className="flex items-center gap-2 text-sm text-white hover:text-gold-400 transition-base py-1">
+              <Users size={13} className="text-gold-500" /> Create User / Password
+            </Link>
             <Link href="/ai"
               className="flex items-center gap-2 text-sm text-white hover:text-gold-400 transition-base py-1">
               <Star size={13} className="text-gold-500" /> AI Follow-Up Coach

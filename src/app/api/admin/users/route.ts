@@ -169,3 +169,53 @@ export async function POST(req: NextRequest) {
     },
   })
 }
+
+export async function PATCH(req: NextRequest) {
+  const authClient = createClient()
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const admin = createAdminClient()
+  const { data: creator } = await admin
+    .from('profiles')
+    .select('id, role, organization_id')
+    .eq('id', user.id)
+    .single()
+
+  if (!creator || !ORG_ADMIN_ROLES.includes(creator.role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const body = await req.json()
+  const userId = String(body.user_id ?? '')
+  const password = String(body.password ?? '')
+
+  if (!userId || !password) {
+    return NextResponse.json({ error: 'User and password are required.' }, { status: 400 })
+  }
+
+  if (password.length < 6) {
+    return NextResponse.json({ error: 'Password must be at least 6 characters.' }, { status: 400 })
+  }
+
+  const { data: targetProfile } = await admin
+    .from('profiles')
+    .select('id, role, organization_id')
+    .eq('id', userId)
+    .single()
+
+  if (!targetProfile) return NextResponse.json({ error: 'User not found.' }, { status: 404 })
+
+  if (creator.role !== 'platform_admin' && targetProfile.organization_id !== creator.organization_id) {
+    return NextResponse.json({ error: 'You can only manage users in your organization.' }, { status: 403 })
+  }
+
+  if (targetProfile.role === 'platform_admin' && creator.role !== 'platform_admin') {
+    return NextResponse.json({ error: 'Only platform admins can update platform admins.' }, { status: 403 })
+  }
+
+  const { error } = await admin.auth.admin.updateUserById(userId, { password })
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
+  return NextResponse.json({ success: true })
+}

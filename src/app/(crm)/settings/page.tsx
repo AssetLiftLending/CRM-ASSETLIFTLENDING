@@ -1,8 +1,11 @@
 import { createServerClient } from '@/lib/supabase/server'
 import SettingsClient from '@/components/settings/SettingsClient'
 
-export default async function SettingsPage() {
+const VALID_TABS = ['Profile', 'Team', 'Phone & SMS', 'Email', 'Automations'] as const
+
+export default async function SettingsPage({ searchParams }: { searchParams?: { tab?: string } }) {
   const supabase = createServerClient()
+  const initialTab = VALID_TABS.find(tab => tab === searchParams?.tab)
 
   const [{ data: profile }, { data: profiles }, { data: smsTemplates }, { data: emailTemplates }, { data: automations }] =
     await Promise.all([
@@ -20,6 +23,7 @@ export default async function SettingsPage() {
       smsTemplates={smsTemplates ?? []}
       emailTemplates={emailTemplates ?? []}
       automations={automations ?? []}
+      initialTab={initialTab}
     />
   )
 }

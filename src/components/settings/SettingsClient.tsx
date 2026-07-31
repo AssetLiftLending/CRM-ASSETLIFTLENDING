@@ -2,12 +2,16 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { User, Phone, Mail, Zap, Users, Save } from 'lucide-react'
+import { Mail, Phone, Save, User, Users, Zap } from 'lucide-react'
 import toast from 'react-hot-toast'
+import UserManagementClient from '@/components/admin/UserManagementClient'
 
-type Profile    = Record<string, any>
-type Template   = Record<string, any>
+type Profile = Record<string, any>
+type Template = Record<string, any>
 type Automation = Record<string, any>
+
+const TABS = ['Profile', 'Team', 'Phone & SMS', 'Email', 'Automations'] as const
+type Tab = typeof TABS[number]
 
 interface Props {
   profile: Profile | null
@@ -15,25 +19,29 @@ interface Props {
   smsTemplates: Template[]
   emailTemplates: Template[]
   automations: Automation[]
+  initialTab?: Tab
 }
 
-const TABS = ['Profile', 'Team', 'Phone & SMS', 'Email', 'Automations'] as const
-type Tab = typeof TABS[number]
-
-const TAB_ICONS: Record<string, React.ReactNode> = {
-  'Profile':     <User size={14} />,
-  'Team':        <Users size={14} />,
+const TAB_ICONS: Record<Tab, React.ReactNode> = {
+  Profile: <User size={14} />,
+  Team: <Users size={14} />,
   'Phone & SMS': <Phone size={14} />,
-  'Email':       <Mail size={14} />,
-  'Automations': <Zap size={14} />,
+  Email: <Mail size={14} />,
+  Automations: <Zap size={14} />,
 }
 
-export default function SettingsClient({ profile, profiles, smsTemplates, emailTemplates, automations }: Props) {
+export default function SettingsClient({
+  profile,
+  smsTemplates,
+  emailTemplates,
+  automations,
+  initialTab,
+}: Props) {
   const router = useRouter()
-  const [tab, setTab]     = useState<Tab>('Profile')
+  const [tab, setTab] = useState<Tab>(initialTab ?? 'Profile')
   const [profileForm, setProfileForm] = useState({
     full_name: profile?.full_name ?? '',
-    phone:     profile?.phone     ?? '',
+    phone: profile?.phone ?? '',
   })
   const [saving, setSaving] = useState(false)
 
@@ -45,8 +53,12 @@ export default function SettingsClient({ profile, profiles, smsTemplates, emailT
       body: JSON.stringify(profileForm),
     })
     setSaving(false)
-    if (res.ok) { toast.success('Profile saved'); router.refresh() }
-    else toast.error('Save failed')
+    if (res.ok) {
+      toast.success('Profile saved')
+      router.refresh()
+    } else {
+      toast.error('Save failed')
+    }
   }
 
   async function toggleAutomation(id: string, current: boolean) {
@@ -60,10 +72,10 @@ export default function SettingsClient({ profile, profiles, smsTemplates, emailT
   }
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 max-w-5xl">
       <div>
         <h1 className="text-2xl font-bold text-dark-800">Settings</h1>
-        <p className="text-gray-500 text-sm">Manage your account, team, and integrations</p>
+        <p className="text-gray-500 text-sm">Manage your account, team, users, passwords, and integrations</p>
       </div>
 
       <div className="flex gap-1 bg-gray-100 rounded-2xl p-1">
@@ -76,11 +88,10 @@ export default function SettingsClient({ profile, profiles, smsTemplates, emailT
         ))}
       </div>
 
-      {/* Profile */}
       {tab === 'Profile' && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
           <h2 className="font-bold text-dark-800">My Profile</h2>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Full Name</label>
               <input value={profileForm.full_name} onChange={e => setProfileForm(p => ({ ...p, full_name: e.target.value }))}
@@ -93,50 +104,17 @@ export default function SettingsClient({ profile, profiles, smsTemplates, emailT
             </div>
           </div>
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
-            <strong>Email:</strong> {profile?.email ?? '—'} &nbsp;·&nbsp; <strong>Role:</strong> {profile?.role ?? '—'}
+            <strong>Email:</strong> {profile?.email ?? '-'} &nbsp;|&nbsp; <strong>Role:</strong> {profile?.role ?? '-'}
           </div>
           <button onClick={saveProfile} disabled={saving}
             className="flex items-center gap-2 bg-gold-500 hover:bg-gold-400 disabled:opacity-50 text-dark-800 font-bold px-5 py-2.5 rounded-xl text-sm">
-            <Save size={14} /> {saving ? 'Saving…' : 'Save Profile'}
+            <Save size={14} /> {saving ? 'Saving...' : 'Save Profile'}
           </button>
         </div>
       )}
 
-      {/* Team */}
-      {tab === 'Team' && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="font-bold text-dark-800">Team Members</h2>
-            <button onClick={() => toast.success('Send an invite via the Supabase dashboard → Authentication → Invite User')}
-              className="text-sm text-gold-600 hover:text-gold-700 font-medium">+ Invite User</button>
-          </div>
-          <div className="divide-y divide-gray-50">
-            {profiles.map(p => (
-              <div key={p.id} className="flex items-center gap-4 p-4">
-                <div className="w-9 h-9 rounded-xl bg-gold-100 flex items-center justify-center text-gold-700 font-bold text-sm">
-                  {p.full_name?.charAt(0) ?? '?'}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-dark-800">{p.full_name ?? 'No name'}</p>
-                  <p className="text-xs text-gray-400">{p.email}</p>
-                </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-bold
-                  ${p.role === 'admin' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
-                  {p.role}
-                </span>
-              </div>
-            ))}
-          </div>
-          <div className="p-5 bg-gray-50 border-t border-gray-100">
-            <p className="text-xs text-gray-500">
-              To invite new team members, go to your <strong>Supabase Dashboard → Authentication → Users → Invite User</strong>.
-              They'll receive an email to set their password, and their profile will appear here automatically.
-            </p>
-          </div>
-        </div>
-      )}
+      {tab === 'Team' && <UserManagementClient compact />}
 
-      {/* Phone & SMS */}
       {tab === 'Phone & SMS' && (
         <div className="space-y-5">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
@@ -144,8 +122,8 @@ export default function SettingsClient({ profile, profiles, smsTemplates, emailT
             <div className="space-y-3">
               {[
                 { label: 'Business Phone Number', env: 'TWILIO_PHONE_NUMBER', desc: 'Your main business number in Twilio' },
-                { label: 'Cell Forwarding Number', env: 'TWILIO_CELL_NUMBER', desc: 'Calls forward here when you\'re away from the CRM' },
-                { label: 'WhatsApp Number', env: 'TWILIO_WHATSAPP_NUMBER', desc: 'Twilio WhatsApp-enabled number (format: whatsapp:+1...)' },
+                { label: 'Cell Forwarding Number', env: 'TWILIO_CELL_NUMBER', desc: 'Calls forward here when you are away from the CRM' },
+                { label: 'WhatsApp Number', env: 'TWILIO_WHATSAPP_NUMBER', desc: 'Twilio WhatsApp-enabled number, formatted like whatsapp:+1...' },
               ].map(item => (
                 <div key={item.label} className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
                   <Phone size={16} className="text-gray-400 mt-0.5" />
@@ -157,7 +135,6 @@ export default function SettingsClient({ profile, profiles, smsTemplates, emailT
                 </div>
               ))}
             </div>
-            <p className="text-xs text-gray-400 mt-4">Configure these values in your <code className="bg-gray-100 px-1 rounded">.env.local</code> file and redeploy.</p>
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -179,7 +156,6 @@ export default function SettingsClient({ profile, profiles, smsTemplates, emailT
         </div>
       )}
 
-      {/* Email */}
       {tab === 'Email' && (
         <div className="space-y-5">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
@@ -220,12 +196,11 @@ export default function SettingsClient({ profile, profiles, smsTemplates, emailT
         </div>
       )}
 
-      {/* Automations */}
       {tab === 'Automations' && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="p-5 border-b border-gray-100">
             <h2 className="font-bold text-dark-800">Automation Rules</h2>
-            <p className="text-sm text-gray-400 mt-0.5">Toggle automations on/off. Edit actions in Supabase → automations table.</p>
+            <p className="text-sm text-gray-400 mt-0.5">Toggle automations on or off.</p>
           </div>
           <div className="divide-y divide-gray-50">
             {automations.map(a => (
@@ -239,7 +214,6 @@ export default function SettingsClient({ profile, profiles, smsTemplates, emailT
                   <p className="text-xs text-gray-400">Trigger: {a.trigger_type?.replace(/_/g, ' ')}</p>
                   {a.description && <p className="text-xs text-gray-400">{a.description}</p>}
                 </div>
-                {/* Toggle */}
                 <button onClick={() => toggleAutomation(a.id, a.is_active)}
                   className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none
                     ${a.is_active ? 'bg-gold-500' : 'bg-gray-200'}`}>

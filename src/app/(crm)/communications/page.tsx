@@ -1,5 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 import CommunicationsClient from '@/components/communications/CommunicationsClient'
+import { getBusinessNumber, getCellNumber, getWhatsAppNumber } from '@/lib/twilio/client'
+import { getFromAddress } from '@/lib/sendgrid/client'
 
 export default async function CommunicationsPage({
   searchParams,
@@ -18,7 +20,7 @@ export default async function CommunicationsPage({
   const { data: recentComms } = await supabase
     .from('communications')
     .select(`
-      id, type, direction, body, subject, duration_secs, recording_url, ai_summary,
+      id, type, direction, body, subject, snippet, duration_secs, recording_url, ai_summary,
       status, created_at, from_number, to_number, from_email, to_email,
       contacts(id, first_name, last_name)
     `)
@@ -38,8 +40,16 @@ export default async function CommunicationsPage({
     contacts: Array.isArray(comm.contacts) ? comm.contacts[0] ?? null : comm.contacts,
   }))
 
+  const channels = {
+    businessNumber: getBusinessNumber(),
+    cellNumber: getCellNumber(),
+    whatsappNumber: getWhatsAppNumber() || null,
+    fromEmail: getFromAddress().email,
+  }
+
   return (
     <CommunicationsClient
+      channels={channels}
       contacts={contacts ?? []}
       recentComms={normalizedComms}
       smsTemplates={smsTemplates ?? []}

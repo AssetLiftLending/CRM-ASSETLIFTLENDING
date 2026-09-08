@@ -18,7 +18,7 @@ export default async function CommunicationsPage({
   const { data: recentComms } = await supabase
     .from('communications')
     .select(`
-      id, type, direction, body, subject, duration_secs, recording_url, ai_summary,
+      id, type, direction, body, subject, snippet, duration_secs, recording_url, ai_summary,
       status, created_at, from_number, to_number, from_email, to_email,
       contacts(id, first_name, last_name)
     `)

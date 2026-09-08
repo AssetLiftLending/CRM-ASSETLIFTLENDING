@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Phone, MessageSquare, Mail, Send, Play } from 'lucide-react'
 import { fmt } from '@/lib/utils/format'
 import toast from 'react-hot-toast'
@@ -9,10 +10,29 @@ type Tab = 'feed' | 'call' | 'sms' | 'email' | 'whatsapp'
 
 interface Contact { id: string; first_name: string; last_name: string; phone?: string; email?: string; whatsapp?: string }
 interface Comm {
-  id: string; type: string; direction?: string; body?: string; subject?: string
+  id: string; type: string; direction?: string; body?: string; subject?: string; snippet?: string
   duration_secs?: number; recording_url?: string; ai_summary?: string
   status?: string; created_at: string; from_number?: string; to_number?: string
   contacts?: { id: string; first_name: string; last_name: string } | null
+}
+
+// Delivery states reported by the SendGrid event webhook and Twilio status callbacks.
+const STATUS_BADGE: Record<string, string> = {
+  queued: 'bg-gray-100 text-gray-500',
+  sent: 'bg-blue-50 text-blue-600',
+  delivered: 'bg-green-50 text-green-600',
+  opened: 'bg-purple-50 text-purple-600',
+  clicked: 'bg-purple-100 text-purple-700',
+  received: 'bg-green-50 text-green-600',
+  bounced: 'bg-red-50 text-red-600',
+  dropped: 'bg-red-50 text-red-600',
+  blocked: 'bg-red-50 text-red-600',
+  spam: 'bg-red-50 text-red-600',
+  failed: 'bg-red-50 text-red-600',
+  undelivered: 'bg-red-50 text-red-600',
+  'no-answer': 'bg-orange-50 text-orange-600',
+  busy: 'bg-orange-50 text-orange-600',
+  completed: 'bg-green-50 text-green-600',
 }
 
 const TAB_ICON: Record<Tab, React.ReactNode> = {
@@ -33,6 +53,7 @@ export default function CommunicationsClient({
   defaultTab: string
   defaultContact?: string
 }) {
+  const router                      = useRouter()
   const [tab, setTab]               = useState<Tab>((defaultTab as Tab) || 'feed')
   const [selectedContact, setContact] = useState(defaultContact ?? '')
   const [message, setMessage]       = useState('')
@@ -42,6 +63,15 @@ export default function CommunicationsClient({
   const [calling, setCalling]       = useState(false)
 
   const contact = contacts.find((c) => c.id === selectedContact)
+
+  async function errorFrom(res: Response, fallback: string) {
+    try {
+      const data = await res.json()
+      return typeof data?.error === 'string' ? data.error : fallback
+    } catch {
+      return fallback
+    }
+  }
 
   async function makeCall() {
     if (!contact?.phone) return toast.error('No phone number')
@@ -53,7 +83,7 @@ export default function CommunicationsClient({
     })
     setCalling(false)
     if (res.ok) toast.success(`Calling ${fmt.name(contact.first_name, contact.last_name)}…`)
-    else toast.error('Call failed')
+    else toast.error(await errorFrom(res, 'Call failed'))
   }
 
   async function sendSms() {
@@ -65,8 +95,8 @@ export default function CommunicationsClient({
       body: JSON.stringify({ contactId: selectedContact, to: contact.phone, body: message }),
     })
     setSending(false)
-    if (res.ok) { toast.success('SMS sent!'); setMessage('') }
-    else toast.error('SMS failed')
+    if (res.ok) { toast.success('SMS sent!'); setMessage(''); router.refresh() }
+    else toast.error(await errorFrom(res, 'SMS failed'))
   }
 
   async function sendEmail() {
@@ -78,8 +108,8 @@ export default function CommunicationsClient({
       body: JSON.stringify({ contactId: selectedContact, to: contact.email, subject, html: htmlBody }),
     })
     setSending(false)
-    if (res.ok) { toast.success('Email sent!'); setSubject(''); setHtmlBody('') }
-    else toast.error('Email failed')
+    if (res.ok) { toast.success(`Email sent to ${contact.email}`); setSubject(''); setHtmlBody(''); router.refresh() }
+    else toast.error(await errorFrom(res, 'Email failed'))
   }
 
   async function sendWhatsApp() {
@@ -91,8 +121,8 @@ export default function CommunicationsClient({
       body: JSON.stringify({ contactId: selectedContact, to: contact.whatsapp, body: message }),
     })
     setSending(false)
-    if (res.ok) { toast.success('WhatsApp sent!'); setMessage('') }
-    else toast.error('WhatsApp failed')
+    if (res.ok) { toast.success('WhatsApp sent!'); setMessage(''); router.refresh() }
+    else toast.error(await errorFrom(res, 'WhatsApp failed'))
   }
 
   const TABS: Tab[] = ['feed', 'call', 'sms', 'email', 'whatsapp']
@@ -302,8 +332,18 @@ export default function CommunicationsClient({
                         </span>
                         <span className="text-xs text-gray-400 capitalize">{c.type}</span>
                         {c.duration_secs && <span className="text-xs text-gray-400">{fmt.callDuration(c.duration_secs)}</span>}
+                        {c.status && (
+                          <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${STATUS_BADGE[c.status] ?? 'bg-gray-100 text-gray-500'}`}>
+                            {c.status}
+                          </span>
+                        )}
                       </div>
-                      {c.body && <div className="text-sm text-gray-600 truncate">{c.body}</div>}
+                      {c.subject && <div className="text-sm font-medium text-dark-800 truncate">{c.subject}</div>}
+                      {(c.snippet || c.body) && (
+                        <div className="text-sm text-gray-600 truncate">
+                          {(c.snippet ?? c.body ?? '').replace(/<[^>]+>/g, ' ').trim()}
+                        </div>
+                      )}
                       {c.ai_summary && (
                         <div className="text-xs text-purple-600 mt-1 bg-purple-50 px-2 py-1 rounded-lg">
                           🤖 {c.ai_summary}

@@ -72,13 +72,31 @@ Complete step-by-step setup from zero to live at **crm.assetliftlending.com**.
 
 1. Go to [sendgrid.com](https://sendgrid.com) → Create account
 2. **Settings → API Keys** → Create API Key → Full Access
-3. **Sender Authentication** → Verify your `info@assetliftlending.com` domain
-4. Fill in `.env.local`:
+3. **Settings → Sender Authentication → Authenticate Your Domain** → add the CNAME
+   records it gives you to your DNS for `assetliftlending.com`, then click Verify.
+   Until this shows *Verified*, your mail will land in spam.
+4. **Settings → Mail Settings → Signed Event Webhook**:
+   - Post URL: `https://crm.assetliftlending.com/api/webhooks/sendgrid/events`
+   - Select events: Delivered, Opened, Clicked, Bounced, Dropped, Spam Report, Unsubscribe
+   - Toggle **Signed Event Webhook** on → copy the **Verification Key**
+   - This is what makes delivered / opened / clicked badges appear in the CRM.
+     The endpoint refuses unsigned traffic, so the key is required.
+5. **Inbound replies (optional but recommended)** — Settings → Inbound Parse → Add Host & URL:
+   - Subdomain: `reply`, Domain: `assetliftlending.com`
+   - Destination URL: `https://crm.assetliftlending.com/api/webhooks/sendgrid/inbound?secret=YOUR_SECRET`
+   - Add the MX record SendGrid shows (`reply.assetliftlending.com` → `mx.sendgrid.net`)
+   - Replies are matched to contacts by email address and logged to their timeline.
+6. Fill in `.env.local`:
    ```
    SENDGRID_API_KEY=SG.xxxxxx
    SENDGRID_FROM_EMAIL=info@assetliftlending.com
    SENDGRID_FROM_NAME=Asset Lift Lending
+   SENDGRID_WEBHOOK_PUBLIC_KEY=base64-key-from-step-4
+   SENDGRID_INBOUND_SECRET=your-long-random-string
    ```
+7. **Verify it works**: sign in to the CRM → **Settings → Email**. The page shows a live
+   connection check and a **Send test** button. A green banner plus a received test email
+   means outbound email is live.
 
 ---
 

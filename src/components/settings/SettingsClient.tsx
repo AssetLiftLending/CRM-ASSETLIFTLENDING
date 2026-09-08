@@ -1,14 +1,26 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Mail, Phone, Save, User, Users, Zap } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Mail, Phone, RefreshCw, Save, Send, User, Users, XCircle, Zap } from 'lucide-react'
 import toast from 'react-hot-toast'
 import UserManagementClient from '@/components/admin/UserManagementClient'
 
 type Profile = Record<string, any>
 type Template = Record<string, any>
 type Automation = Record<string, any>
+
+interface EmailStatus {
+  configured: boolean
+  keyValid: boolean
+  fromEmail?: string
+  fromName?: string
+  senderVerified?: boolean | null
+  inboundConfigured?: boolean
+  eventWebhookConfigured?: boolean
+  message: string
+  webhooks?: { events: string; inbound: string }
+}
 
 const TABS = ['Profile', 'Team', 'Phone & SMS', 'Email', 'Automations'] as const
 type Tab = typeof TABS[number]
@@ -44,6 +56,40 @@ export default function SettingsClient({
     phone: profile?.phone ?? '',
   })
   const [saving, setSaving] = useState(false)
+  const [emailStatus, setEmailStatus] = useState<EmailStatus | null>(null)
+  const [checkingEmail, setCheckingEmail] = useState(false)
+  const [testAddress, setTestAddress] = useState(profile?.email ?? '')
+  const [sendingTest, setSendingTest] = useState(false)
+
+  const loadEmailStatus = useCallback(async () => {
+    setCheckingEmail(true)
+    try {
+      const res = await fetch('/api/email/status')
+      const data = await res.json()
+      setEmailStatus(res.ok ? data : { configured: false, keyValid: false, message: data?.error ?? 'Status check failed' })
+    } catch {
+      setEmailStatus({ configured: false, keyValid: false, message: 'Could not reach the CRM email service.' })
+    }
+    setCheckingEmail(false)
+  }, [])
+
+  useEffect(() => {
+    if (tab === 'Email' && !emailStatus && !checkingEmail) loadEmailStatus()
+  }, [tab, emailStatus, checkingEmail, loadEmailStatus])
+
+  async function sendTestEmail() {
+    if (!testAddress.trim()) return toast.error('Enter an address to test')
+    setSendingTest(true)
+    const res = await fetch('/api/email/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: testAddress.trim() }),
+    })
+    const data = await res.json().catch(() => ({}))
+    setSendingTest(false)
+    if (res.ok) toast.success(`Test email sent to ${data.to ?? testAddress}`)
+    else toast.error(data?.error ?? 'Test email failed')
+  }
 
   async function saveProfile() {
     setSaving(true)
@@ -159,12 +205,88 @@ export default function SettingsClient({
       {tab === 'Email' && (
         <div className="space-y-5">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-dark-800">Email Connection</h2>
+              <button onClick={loadEmailStatus} disabled={checkingEmail}
+                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-dark-800 disabled:opacity-50">
+                <RefreshCw size={13} className={checkingEmail ? 'animate-spin' : ''} /> Re-check
+              </button>
+            </div>
+
+            {!emailStatus && <p className="text-sm text-gray-400">Checking SendGrid…</p>}
+
+            {emailStatus && (
+              <div className="space-y-3">
+                <div className={`flex items-start gap-3 p-3 rounded-xl ${emailStatus.keyValid ? 'bg-green-50' : 'bg-red-50'}`}>
+                  {emailStatus.keyValid
+                    ? <CheckCircle2 size={18} className="text-green-600 mt-0.5" />
+                    : <XCircle size={18} className="text-red-600 mt-0.5" />}
+                  <div>
+                    <p className={`text-sm font-medium ${emailStatus.keyValid ? 'text-green-700' : 'text-red-700'}`}>
+                      {emailStatus.keyValid ? 'SendGrid connected' : 'Email is not sending yet'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">{emailStatus.message}</p>
+                  </div>
+                </div>
+
+                {emailStatus.keyValid && emailStatus.senderVerified === false && (
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-yellow-50">
+                    <AlertTriangle size={18} className="text-yellow-600 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-yellow-800">Domain not authenticated</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Finish Sender Authentication in SendGrid for {emailStatus.fromEmail} so mail is not filtered as spam.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="p-3 bg-gray-50 rounded-xl">
+                    <p className="text-gray-400">Sending as</p>
+                    <p className="font-medium text-dark-800">{emailStatus.fromName} &lt;{emailStatus.fromEmail}&gt;</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-xl">
+                    <p className="text-gray-400">Tracking &amp; replies</p>
+                    <p className="font-medium text-dark-800">
+                      Opens/clicks {emailStatus.eventWebhookConfigured ? 'on' : 'off'} · Inbound {emailStatus.inboundConfigured ? 'on' : 'off'}
+                    </p>
+                  </div>
+                </div>
+
+                {emailStatus.webhooks && (
+                  <div className="p-3 bg-gray-50 rounded-xl space-y-1">
+                    <p className="text-xs text-gray-400">Paste these into SendGrid</p>
+                    <p className="text-xs"><span className="text-gray-500">Event webhook:</span> <code className="bg-gray-200 px-1 rounded">{emailStatus.webhooks.events}</code></p>
+                    <p className="text-xs"><span className="text-gray-500">Inbound parse:</span> <code className="bg-gray-200 px-1 rounded">{emailStatus.webhooks.inbound}</code></p>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    value={testAddress}
+                    onChange={e => setTestAddress(e.target.value)}
+                    placeholder="you@example.com"
+                    className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gold-500"
+                  />
+                  <button onClick={sendTestEmail} disabled={sendingTest}
+                    className="flex items-center gap-2 bg-gold-500 hover:bg-gold-400 disabled:opacity-50 text-dark-800 font-bold px-4 py-2 rounded-xl text-sm">
+                    <Send size={14} /> {sendingTest ? 'Sending…' : 'Send test'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <h2 className="font-bold text-dark-800 mb-4">SendGrid Configuration</h2>
             <div className="space-y-3">
               {[
                 { label: 'SendGrid API Key', env: 'SENDGRID_API_KEY' },
                 { label: 'From Email', env: 'SENDGRID_FROM_EMAIL' },
                 { label: 'From Name', env: 'SENDGRID_FROM_NAME' },
+                { label: 'Event Webhook Key (opens, clicks, bounces)', env: 'SENDGRID_WEBHOOK_PUBLIC_KEY' },
+                { label: 'Inbound Parse Secret (replies into the CRM)', env: 'SENDGRID_INBOUND_SECRET' },
               ].map(item => (
                 <div key={item.label} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
                   <Mail size={16} className="text-gray-400" />

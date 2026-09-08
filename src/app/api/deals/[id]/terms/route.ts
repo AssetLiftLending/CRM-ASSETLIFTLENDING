@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { sendEmail } from '@/lib/sendgrid/client'
+import { getAppUrl } from '@/lib/utils/app-url'
 
 export const runtime = 'nodejs'
 
 const PDFDocument = require('pdfkit')
 
 const ADMIN_ROLES = ['platform_admin', 'organization_admin', 'owner', 'loan_officer', 'processor']
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://assetlift-crm.vercel.app'
+const APP_URL = getAppUrl()
 const PORTAL_URL = 'https://assetliftlending.com/portal'
 const BROKER_URL = 'https://assetliftlending.com/broker'
 

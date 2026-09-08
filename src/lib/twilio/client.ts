@@ -1,5 +1,6 @@
 import twilio from 'twilio'
 import { toE164 } from '@/lib/twilio/phone'
+import { appUrl } from '@/lib/utils/app-url'
 
 function getTwilioClient() {
   const accountSid = process.env.TWILIO_ACCOUNT_SID?.trim()
@@ -12,6 +13,8 @@ function getTwilioClient() {
   }
   return twilio(accountSid, authToken)
 }
+
+export { appUrl }
 
 export const TWILIO_PHONE = process.env.TWILIO_PHONE_NUMBER ?? ''
 export const TWILIO_CELL  = process.env.TWILIO_CELL_NUMBER ?? ''
@@ -31,11 +34,6 @@ export function isTwilioConfigured() {
     process.env.TWILIO_AUTH_TOKEN &&
     getBusinessNumber()
   )
-}
-
-export function appUrl(path: string) {
-  const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ?? ''
-  return `${base}${path}`
 }
 
 /** Twilio errors carry the actionable detail in `code` + `moreInfo`. */

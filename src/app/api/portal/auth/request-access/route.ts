@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { sendEmail } from '@/lib/sendgrid/client'
+import { getAppUrl } from '@/lib/utils/app-url'
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
       type: 'magiclink',
       email,
       options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/portal`,
+        redirectTo: `${getAppUrl()}/portal`,
       },
     })
 

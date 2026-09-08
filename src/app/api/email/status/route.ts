@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getStaffContext } from '@/lib/auth/session'
 import { checkSendGridConnection } from '@/lib/sendgrid/client'
+import { getAppUrl } from '@/lib/utils/app-url'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,7 +10,7 @@ export async function GET() {
   if (!staff) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const status = await checkSendGridConnection()
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ?? ''
+  const appUrl = getAppUrl()
 
   return NextResponse.json({
     ...status,

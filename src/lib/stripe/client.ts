@@ -1,4 +1,5 @@
 import Stripe from 'stripe'
+import { getAppUrl } from '@/lib/utils/app-url'
 
 function getStripeClient() {
   const secretKey = process.env.STRIPE_SECRET_KEY
@@ -26,6 +27,6 @@ export async function createAppraisalPaymentIntent(
 export async function createPortalSession(customerId: string) {
   return getStripeClient().billingPortal.sessions.create({
     customer: customerId,
-    return_url: `${process.env.NEXT_PUBLIC_APP_URL}/portal`,
+    return_url: `${getAppUrl()}/portal`,
   })
 }

@@ -10,6 +10,21 @@ type Profile = Record<string, any>
 type Template = Record<string, any>
 type Automation = Record<string, any>
 
+interface PhoneStatus {
+  configured: boolean
+  credentialsValid: boolean
+  businessNumber?: string | null
+  cellNumber?: string | null
+  whatsappNumber?: string | null
+  agentNumber?: string | null
+  numberOwned?: boolean | null
+  webhooksMatch?: boolean | null
+  voiceWebhook?: string | null
+  smsWebhook?: string | null
+  message: string
+  webhooks?: { voice: string; sms: string; callStatus: string; smsStatus: string }
+}
+
 interface EmailStatus {
   configured: boolean
   keyValid: boolean
@@ -60,6 +75,10 @@ export default function SettingsClient({
   const [checkingEmail, setCheckingEmail] = useState(false)
   const [testAddress, setTestAddress] = useState(profile?.email ?? '')
   const [sendingTest, setSendingTest] = useState(false)
+  const [phoneStatus, setPhoneStatus] = useState<PhoneStatus | null>(null)
+  const [checkingPhone, setCheckingPhone] = useState(false)
+  const [testNumber, setTestNumber] = useState(profile?.phone ?? '')
+  const [sendingTestSms, setSendingTestSms] = useState(false)
 
   const loadEmailStatus = useCallback(async () => {
     setCheckingEmail(true)
@@ -73,9 +92,36 @@ export default function SettingsClient({
     setCheckingEmail(false)
   }, [])
 
+  const loadPhoneStatus = useCallback(async () => {
+    setCheckingPhone(true)
+    try {
+      const res = await fetch('/api/phone/status')
+      const data = await res.json()
+      setPhoneStatus(res.ok ? data : { configured: false, credentialsValid: false, message: data?.error ?? 'Status check failed' })
+    } catch {
+      setPhoneStatus({ configured: false, credentialsValid: false, message: 'Could not reach the CRM phone service.' })
+    }
+    setCheckingPhone(false)
+  }, [])
+
   useEffect(() => {
     if (tab === 'Email' && !emailStatus && !checkingEmail) loadEmailStatus()
-  }, [tab, emailStatus, checkingEmail, loadEmailStatus])
+    if (tab === 'Phone & SMS' && !phoneStatus && !checkingPhone) loadPhoneStatus()
+  }, [tab, emailStatus, checkingEmail, loadEmailStatus, phoneStatus, checkingPhone, loadPhoneStatus])
+
+  async function sendTestSms() {
+    if (!testNumber.trim()) return toast.error('Enter a mobile number to test')
+    setSendingTestSms(true)
+    const res = await fetch('/api/phone/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: testNumber.trim() }),
+    })
+    const data = await res.json().catch(() => ({}))
+    setSendingTestSms(false)
+    if (res.ok) toast.success(`Test text sent to ${data.to ?? testNumber}`)
+    else toast.error(data?.error ?? 'Test text failed')
+  }
 
   async function sendTestEmail() {
     if (!testAddress.trim()) return toast.error('Enter an address to test')
@@ -163,6 +209,74 @@ export default function SettingsClient({
 
       {tab === 'Phone & SMS' && (
         <div className="space-y-5">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-dark-800">Phone Line Status</h2>
+              <button onClick={loadPhoneStatus} disabled={checkingPhone}
+                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-dark-800 disabled:opacity-50">
+                <RefreshCw size={13} className={checkingPhone ? 'animate-spin' : ''} /> Re-check
+              </button>
+            </div>
+
+            {!phoneStatus && <p className="text-sm text-gray-400">Checking Twilio…</p>}
+
+            {phoneStatus && (
+              <div className="space-y-3">
+                <div className={`flex items-start gap-3 p-3 rounded-xl ${phoneStatus.credentialsValid ? 'bg-green-50' : 'bg-red-50'}`}>
+                  {phoneStatus.credentialsValid
+                    ? <CheckCircle2 size={18} className="text-green-600 mt-0.5" />
+                    : <XCircle size={18} className="text-red-600 mt-0.5" />}
+                  <div>
+                    <p className={`text-sm font-medium ${phoneStatus.credentialsValid ? 'text-green-700' : 'text-red-700'}`}>
+                      {phoneStatus.credentialsValid ? 'Twilio connected' : 'Phone line is not live yet'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">{phoneStatus.message}</p>
+                  </div>
+                </div>
+
+                {phoneStatus.credentialsValid && phoneStatus.webhooksMatch === false && phoneStatus.webhooks && (
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-yellow-50">
+                    <AlertTriangle size={18} className="text-yellow-600 mt-0.5" />
+                    <div className="text-xs text-gray-600 space-y-1">
+                      <p className="text-sm font-medium text-yellow-800">Twilio webhooks need updating</p>
+                      <p>In Twilio → Phone Numbers → your number, set:</p>
+                      <p><span className="text-gray-500">A call comes in:</span> <code className="bg-gray-200 px-1 rounded">{phoneStatus.webhooks.voice}</code></p>
+                      <p><span className="text-gray-500">A message comes in:</span> <code className="bg-gray-200 px-1 rounded">{phoneStatus.webhooks.sms}</code></p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-3 gap-3 text-xs">
+                  <div className="p-3 bg-gray-50 rounded-xl">
+                    <p className="text-gray-400">Business line</p>
+                    <p className="font-medium text-dark-800">{phoneStatus.businessNumber ?? 'Not set'}</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-xl">
+                    <p className="text-gray-400">Calls ring</p>
+                    <p className="font-medium text-dark-800">{phoneStatus.agentNumber || phoneStatus.cellNumber || 'Not set'}</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-xl">
+                    <p className="text-gray-400">WhatsApp</p>
+                    <p className="font-medium text-dark-800">{phoneStatus.whatsappNumber ?? 'Not set'}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    value={testNumber}
+                    onChange={e => setTestNumber(e.target.value)}
+                    placeholder="+15551234567"
+                    className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gold-500"
+                  />
+                  <button onClick={sendTestSms} disabled={sendingTestSms}
+                    className="flex items-center gap-2 bg-gold-500 hover:bg-gold-400 disabled:opacity-50 text-dark-800 font-bold px-4 py-2 rounded-xl text-sm">
+                    <Send size={14} /> {sendingTestSms ? 'Sending…' : 'Send test text'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <h2 className="font-bold text-dark-800 mb-4">Twilio Phone Configuration</h2>
             <div className="space-y-3">

@@ -44,9 +44,10 @@ const TAB_ICON: Record<Tab, React.ReactNode> = {
 }
 
 export default function CommunicationsClient({
-  contacts, recentComms, smsTemplates, emailTemplates, defaultTab, defaultContact,
+  contacts, recentComms, smsTemplates, emailTemplates, defaultTab, defaultContact, channels,
 }: {
   contacts: Contact[]
+  channels: { businessNumber: string | null; cellNumber: string | null; whatsappNumber: string | null; fromEmail: string }
   recentComms: Comm[]
   smsTemplates: Array<{ id: string; name: string; body: string; category?: string }>
   emailTemplates: Array<{ id: string; name: string; subject: string; html_body: string }>
@@ -370,25 +371,25 @@ export default function CommunicationsClient({
         {/* Right panel — quick stats */}
         <div className="space-y-4">
           <div className="bg-dark-800 rounded-2xl p-5 text-white">
-            <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Your Numbers</div>
+            <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Your Channels</div>
             <div className="space-y-3">
-              <div>
-                <div className="text-xs text-gray-400">Business Line</div>
-                <div className="font-mono text-gold-400 font-bold">{process.env.NEXT_PUBLIC_BUSINESS_PHONE ?? 'Configure in Settings'}</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-400">Cell (Forwarding)</div>
-                <div className="font-mono text-gold-400 font-bold">Connected ✓</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-400">WhatsApp Business</div>
-                <div className="font-mono text-green-400 font-bold">Active ✓</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-400">Email</div>
-                <div className="text-gold-400 text-xs">info@assetliftlending.com</div>
-              </div>
+              {[
+                { label: 'Business Line', value: channels.businessNumber ? fmt.phone(channels.businessNumber) : null },
+                { label: 'Calls Ring', value: channels.cellNumber ? fmt.phone(channels.cellNumber) : null },
+                { label: 'WhatsApp Business', value: channels.whatsappNumber?.replace('whatsapp:', '') ?? null },
+                { label: 'Email', value: channels.fromEmail },
+              ].map(row => (
+                <div key={row.label}>
+                  <div className="text-xs text-gray-400">{row.label}</div>
+                  <div className={`font-mono text-sm font-bold ${row.value ? 'text-gold-400' : 'text-gray-500'}`}>
+                    {row.value ?? 'Not configured'}
+                  </div>
+                </div>
+              ))}
             </div>
+            <a href="/settings?tab=Phone%20%26%20SMS" className="block text-xs text-gray-400 hover:text-gold-400 mt-4">
+              Check connection in Settings →
+            </a>
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">

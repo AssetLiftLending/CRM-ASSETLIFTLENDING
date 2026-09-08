@@ -14,10 +14,18 @@ CREATE INDEX IF NOT EXISTS idx_comms_twilio_sid
   ON public.communications(twilio_sid)
   WHERE twilio_sid IS NOT NULL;
 
--- Inbound SMS and calls are matched to a contact by phone number.
-CREATE INDEX IF NOT EXISTS idx_contacts_phone   ON public.contacts(phone);
-CREATE INDEX IF NOT EXISTS idx_contacts_cell    ON public.contacts(cell_phone);
-CREATE INDEX IF NOT EXISTS idx_contacts_email   ON public.contacts(lower(email));
+-- Inbound SMS and calls arrive in E.164 (+15551234567) while contacts are stored
+-- however they were imported ("(555) 123-4567", "555.123.4567", ...). These
+-- generated columns hold the last 10 digits so inbound routing matches reliably.
+ALTER TABLE public.contacts
+  ADD COLUMN IF NOT EXISTS phone_digits TEXT
+    GENERATED ALWAYS AS (NULLIF(right(regexp_replace(COALESCE(phone, ''), '\D', '', 'g'), 10), '')) STORED,
+  ADD COLUMN IF NOT EXISTS cell_phone_digits TEXT
+    GENERATED ALWAYS AS (NULLIF(right(regexp_replace(COALESCE(cell_phone, ''), '\D', '', 'g'), 10), '')) STORED;
+
+CREATE INDEX IF NOT EXISTS idx_contacts_phone_digits ON public.contacts(phone_digits);
+CREATE INDEX IF NOT EXISTS idx_contacts_cell_digits  ON public.contacts(cell_phone_digits);
+CREATE INDEX IF NOT EXISTS idx_contacts_email        ON public.contacts(lower(email));
 
 -- Global activity feed ordering.
 CREATE INDEX IF NOT EXISTS idx_comms_created    ON public.communications(created_at DESC);

@@ -51,20 +51,40 @@ Complete step-by-step setup from zero to live at **crm.assetliftlending.com**.
 1. Log in to [twilio.com](https://twilio.com)
 2. **Account SID** + **Auth Token** → from your Twilio dashboard
 3. **Buy/port your business number** (if not already there)
-4. **Configure your number** → Messaging webhooks:
-   - Inbound SMS URL: `https://crm.assetliftlending.com/api/webhooks/twilio/sms`
-5. **Voice webhooks**:
-   - Call comes in → `https://crm.assetliftlending.com/api/calls/twiml`
-   - Recording complete → `https://crm.assetliftlending.com/api/webhooks/twilio/recording`
-6. **WhatsApp Sandbox or Business** → connect your WhatsApp Business number in Twilio
-7. Fill in `.env.local`:
+4. **Phone Numbers → Manage → your number** — set both webhooks (HTTP POST):
+   - **A call comes in** → `https://crm.assetliftlending.com/api/webhooks/twilio/voice`
+   - **A message comes in** → `https://crm.assetliftlending.com/api/webhooks/twilio/sms`
+
+   Everything else (status callbacks, recordings, voicemail transcription) is
+   attached automatically by the CRM when it places or answers a call — you do
+   not configure those in Twilio.
+5. **WhatsApp Sandbox or Business** → connect your WhatsApp Business number in Twilio
+6. Fill in `.env.local` (numbers must be E.164, i.e. `+1` then 10 digits):
    ```
    TWILIO_ACCOUNT_SID=ACxxxxxx
    TWILIO_AUTH_TOKEN=xxxxxx
    TWILIO_PHONE_NUMBER=+15551234567
-   TWILIO_CELL_NUMBER=+15557654321   # your personal cell
+   TWILIO_CELL_NUMBER=+15557654321   # rings when a lead calls in
    TWILIO_WHATSAPP_NUMBER=whatsapp:+15551234567
    ```
+7. **Verify it works**: CRM → **Settings → Phone & SMS**. It checks your credentials,
+   confirms Twilio owns the number, warns if the webhooks do not point here, and has a
+   **Send test text** button.
+
+### How the phone line behaves
+
+| Situation | What happens |
+|---|---|
+| Lead calls your business number | Call is logged, your cell rings with a whisper naming the caller |
+| You do not answer in 25 seconds | Caller gets a voicemail prompt; the recording and transcript land on their timeline |
+| Missed call | The caller is automatically texted back from the business number |
+| You click **Call** in the CRM | Your phone rings first, then Twilio bridges the lead — they never answer to silence |
+| Lead texts your number | Logged to their timeline (no auto-reply) |
+| Any outbound call or text | Delivery status updates in the activity feed |
+
+All Twilio webhooks verify the `X-Twilio-Signature` header, so only Twilio can post to
+them. For local testing with curl, set `TWILIO_ALLOW_UNSIGNED_WEBHOOKS=true` — never in
+production.
 
 ---
 

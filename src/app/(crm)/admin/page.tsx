@@ -5,6 +5,7 @@ import { useDropzone } from 'react-dropzone'
 import { Upload, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { parseCsv } from '@/lib/import/csv'
+import GhlHistoryImport from '@/components/admin/GhlHistoryImport'
 
 export default function AdminPage() {
   const [importing, setImporting]   = useState(false)
@@ -62,6 +63,8 @@ export default function AdminPage() {
         <h1 className="text-2xl font-bold text-dark-800">Import / Admin</h1>
         <p className="text-gray-500 text-sm">Import your GoHighLevel contacts and manage your CRM data</p>
       </div>
+
+      <GhlHistoryImport />
 
       {/* GHL Import */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">

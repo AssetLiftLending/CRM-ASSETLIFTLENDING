@@ -1,35 +1,49 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { findContactByPhone } from '@/lib/twilio/phone'
+import { readTwilioWebhook, twimlResponse } from '@/lib/twilio/verify'
 
-// Twilio inbound SMS webhook
+export const dynamic = 'force-dynamic'
+
+const EMPTY_TWIML = '<Response></Response>'
+
+/** Inbound SMS and MMS to the business number. */
 export async function POST(req: NextRequest) {
-  const form   = await req.formData()
-  const from   = form.get('From') as string
-  const body   = form.get('Body') as string
-  const sid    = form.get('MessageSid') as string
+  const { params, verified, reason } = await readTwilioWebhook(req)
+
+  if (!verified) {
+    console.error(`Twilio SMS webhook rejected (${reason})`)
+    return twimlResponse(EMPTY_TWIML)
+  }
+
+  const from = params.From ?? ''
+  const to = params.To ?? ''
+  const body = params.Body ?? ''
+  const sid = params.MessageSid ?? params.SmsSid ?? ''
+  const mediaCount = parseInt(params.NumMedia ?? '0', 10) || 0
+
+  if (!from) return twimlResponse(EMPTY_TWIML)
 
   const supabase = createAdminClient()
+  const contact = await findContactByPhone(supabase, from)
 
-  // Find contact by phone number
-  const phone = from.replace(/\D/g, '')
-  const { data: contact } = await supabase
-    .from('contacts')
-    .select('id, first_name, last_name')
-    .or(`phone.ilike.%${phone.slice(-10)}%,cell_phone.ilike.%${phone.slice(-10)}%`)
-    .single()
+  const text = mediaCount > 0 && !body ? `[${mediaCount} attachment${mediaCount > 1 ? 's' : ''}]` : body
 
-  // Log inbound SMS
-  await supabase.from('communications').insert({
-    contact_id:  contact?.id ?? null,
-    type:        'sms',
-    direction:   'inbound',
-    body,
-    status:      'received',
-    from_number: from,
-    twilio_sid:  sid,
+  const { error } = await supabase.from('communications').insert({
+    contact_id:      contact?.id ?? null,
+    organization_id: contact?.organization_id ?? null,
+    type:            'sms',
+    direction:       'inbound',
+    body:            text,
+    snippet:         text.slice(0, 200),
+    status:          'received',
+    from_number:     from,
+    to_number:       to,
+    twilio_sid:      sid,
   })
 
-  return new NextResponse('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
-    headers: { 'Content-Type': 'text/xml' },
-  })
+  if (error) console.error('Twilio SMS webhook — insert failed', error)
+
+  // Empty TwiML: log the message without auto-replying.
+  return twimlResponse(EMPTY_TWIML)
 }

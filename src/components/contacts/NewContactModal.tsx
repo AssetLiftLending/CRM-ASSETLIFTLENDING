@@ -102,7 +102,7 @@ export default function NewContactModal({
           <Section number="1" title="Borrower">
             <div className="grid grid-cols-2 gap-4">
               <Field label="First Name *" value={form.first_name} onChange={set('first_name')} required />
-              <Field label="Last Name *" value={form.last_name} onChange={set('last_name')} required />
+              <Field label="Last Name" value={form.last_name} onChange={set('last_name')} />
               <Field label="Phone Number *" value={form.phone} onChange={set('phone')} type="tel" required />
               <Field label="Email *" value={form.email} onChange={set('email')} type="email" required />
               <Field label="Entity / LLC Name" value={form.entity_name} onChange={set('entity_name')} />
@@ -146,8 +146,8 @@ export default function NewContactModal({
                 </div>
               </div>
 
-              <Field label="Property Address *" value={form.property_address} onChange={set('property_address')} required />
-              <Field label="Loan Amount *" value={form.loan_amount} onChange={set('loan_amount')} type="number" placeholder="$0" required />
+              <Field label="Property Address" value={form.property_address} onChange={set('property_address')} />
+              <Field label="Loan Amount" value={form.loan_amount} onChange={set('loan_amount')} type="number" placeholder="$0" />
               <Field label="Property City" value={form.property_city} onChange={set('property_city')} />
               <Field label="Property State" value={form.property_state} onChange={set('property_state')} />
               <Field label="Property ZIP" value={form.property_zip} onChange={set('property_zip')} />

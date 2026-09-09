@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import Stripe from 'stripe'
+import { getAppUrl } from '@/lib/utils/app-url'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', { apiVersion: '2024-04-10' })
 
@@ -27,8 +28,8 @@ export async function POST(req: NextRequest) {
         quantity: 1,
       }],
       mode: 'payment',
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/deals/${deal_id}?appraisal_paid=1`,
-      cancel_url:  `${process.env.NEXT_PUBLIC_APP_URL}/deals/${deal_id}`,
+      success_url: `${getAppUrl()}/deals/${deal_id}?appraisal_paid=1`,
+      cancel_url:  `${getAppUrl()}/deals/${deal_id}`,
       customer_email: contact?.email ?? undefined,
       metadata: { deal_id, contact_id },
     })

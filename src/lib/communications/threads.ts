@@ -28,7 +28,7 @@ export function resetReadTrackingCache() {
 
 export const THREAD_LIST_FIELDS =
   'id, contact_id, type, direction, body, snippet, subject, status, ai_summary, created_at, ' +
-  'contacts(id, first_name, last_name, email, phone, cell_phone, whatsapp, stage, lead_source)'
+  'contacts(id, first_name, last_name, email, phone, cell_phone, whatsapp, city, state, stage, lead_source)'
 
 type Row = Record<string, any>
 

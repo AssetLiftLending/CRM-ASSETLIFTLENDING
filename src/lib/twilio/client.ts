@@ -1,5 +1,7 @@
 import twilio from 'twilio'
 import { toE164 } from '@/lib/twilio/phone'
+import { appUrl } from '@/lib/utils/app-url'
+import { renderTemplate } from '@/lib/communications/merge'
 
 function getTwilioClient() {
   const accountSid = process.env.TWILIO_ACCOUNT_SID?.trim()
@@ -12,6 +14,8 @@ function getTwilioClient() {
   }
   return twilio(accountSid, authToken)
 }
+
+export { appUrl }
 
 export const TWILIO_PHONE = process.env.TWILIO_PHONE_NUMBER ?? ''
 export const TWILIO_CELL  = process.env.TWILIO_CELL_NUMBER ?? ''
@@ -31,11 +35,6 @@ export function isTwilioConfigured() {
     process.env.TWILIO_AUTH_TOKEN &&
     getBusinessNumber()
   )
-}
-
-export function appUrl(path: string) {
-  const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ?? ''
-  return `${base}${path}`
 }
 
 /** Twilio errors carry the actionable detail in `code` + `moreInfo`. */
@@ -165,7 +164,7 @@ export async function missedCallAutoText(to: string, agentName = 'Asset Lift Len
 // ── TEMPLATE INTERPOLATION ────────────────────────────────
 
 export function interpolate(template: string, vars: Record<string, string>) {
-  return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, key) => vars[key] ?? `{{${key}}}`)
+  return renderTemplate(template, vars)
 }
 
 // ── DIAGNOSTICS ────────────────────────────────────────────

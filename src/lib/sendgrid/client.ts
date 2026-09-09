@@ -1,4 +1,5 @@
 import sgMail from '@sendgrid/mail'
+import { renderTemplate } from '@/lib/communications/merge'
 
 const SENDGRID_API = 'https://api.sendgrid.com/v3'
 
@@ -197,7 +198,7 @@ export async function sendCampaign({
 // ── TEMPLATE EMAIL ─────────────────────────────────────────
 
 export function interpolateEmail(html: string, vars: Record<string, string>) {
-  return html.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, key) => vars[key] ?? '')
+  return renderTemplate(html, vars)
 }
 
 // ── DIAGNOSTICS ────────────────────────────────────────────

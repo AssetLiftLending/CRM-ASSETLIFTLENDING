@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { sendEmail, interpolateEmail } from '@/lib/sendgrid/client'
-import { sendSms, interpolate } from '@/lib/twilio/client'
+import { sendEmail } from '@/lib/sendgrid/client'
+import { sendSms } from '@/lib/twilio/client'
+import { buildMergeVars, renderTemplate } from '@/lib/communications/merge'
 
 export type AutomationAction = {
   type: 'send_sms' | 'send_email' | 'create_task'
@@ -52,22 +53,29 @@ async function loadContext(
   return {
     contactId,
     dealId,
-    vars: {
-      first_name: contact?.first_name ?? '',
-      last_name: contact?.last_name ?? '',
-      contact_name: `${contact?.first_name ?? ''} ${contact?.last_name ?? ''}`.trim(),
-      email: contact?.email ?? '',
+    vars: buildMergeVars(contact, null, {
       email_opt_out: contact?.email_opt_out ? 'true' : 'false',
-      phone: contact?.phone ?? '',
       loan_type: deal?.loan_program?.replace(/_/g, ' ') ?? '',
       loan_program: deal?.loan_program?.replace(/_/g, ' ') ?? '',
-      portal_url: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/portal`,
-      agent_name: process.env.SENDGRID_FROM_NAME ?? 'Asset Lift Lending',
-      doc_name: 'documents',
-      date: new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York' }),
-      time: new Date().toLocaleTimeString('en-US', { timeZone: 'America/New_York' }),
-    },
+      property_address: deal?.property_address ?? '',
+    }),
   }
+}
+
+/**
+ * Rebuilds merge variables from the current record before a queued action runs.
+ *
+ * A delayed action can sit in the queue for days. Rendering it from the variables
+ * captured at queue time sends stale details, and any tag that set did not carry
+ * would go out unfilled — the stored values are kept only as a fallback.
+ */
+export async function resolveContext(
+  supabase: SupabaseClient,
+  context: ActionContext,
+): Promise<ActionContext> {
+  if (!context.contactId && !context.dealId) return context
+  const fresh = await loadContext(supabase, context.contactId, context.dealId)
+  return { ...fresh, vars: { ...context.vars, ...fresh.vars } }
 }
 
 export async function executeAutomationAction(
@@ -83,7 +91,7 @@ export async function executeAutomationAction(
       .select('body')
       .ilike('name', `%${action.template?.replace(/_/g, ' ') ?? ''}%`)
       .maybeSingle()
-    const body = interpolate(template?.body ?? action.template ?? '', vars)
+    const body = renderTemplate(template?.body ?? action.template ?? '', vars)
     if (!body) return { status: 'skipped', reason: 'Template is empty' }
 
     const message = await sendSms(vars.phone, body)
@@ -108,9 +116,9 @@ export async function executeAutomationAction(
       .maybeSingle()
     if (!template) return { status: 'skipped', reason: 'Template not found' }
 
-    const subject = interpolate(template.subject, vars)
-    const html = interpolateEmail(template.html_body, vars)
-    const text = template.text_body ? interpolate(template.text_body, vars) : undefined
+    const subject = renderTemplate(template.subject, vars)
+    const html = renderTemplate(template.html_body, vars)
+    const text = template.text_body ? renderTemplate(template.text_body, vars) : undefined
     const result = await sendEmail({ to: vars.email, subject, html, text })
     await supabase.from('communications').insert({
       contact_id: contactId,
@@ -135,7 +143,7 @@ export async function executeAutomationAction(
         ? new Date(Date.now() + action.due_in_hours * 3600000).toISOString()
         : null
     const { data, error } = await supabase.from('tasks').insert({
-      title: interpolate(action.title ?? 'Follow up', vars),
+      title: renderTemplate(action.title ?? 'Follow up', vars),
       priority: action.priority ?? 'medium',
       due_date: dueDate,
       contact_id: contactId || null,

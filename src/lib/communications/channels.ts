@@ -1,3 +1,4 @@
+import { getAppUrl } from '@/lib/utils/app-url'
 // Server-side only: reads private credentials. Call it from server components
 // and route handlers, and pass the resulting booleans to the client — never
 // import this into a 'use client' module.
@@ -29,7 +30,11 @@ export function channelStatus(): ChannelStatus[] {
   const twilio = ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN']
 
   const smsMissing = need([...twilio, 'TWILIO_PHONE_NUMBER'])
-  const callMissing = need([...twilio, 'TWILIO_PHONE_NUMBER', 'NEXT_PUBLIC_APP_URL'])
+  const callMissing = [
+    ...need([...twilio, 'TWILIO_PHONE_NUMBER']),
+    // Resolved from Vercel's production domain when the variable is unset.
+    ...(getAppUrl() ? [] : ['NEXT_PUBLIC_APP_URL']),
+  ]
   const waMissing = need([...twilio, 'TWILIO_WHATSAPP_NUMBER'])
   const emailMissing = need(['SENDGRID_API_KEY', 'SENDGRID_FROM_EMAIL'])
 

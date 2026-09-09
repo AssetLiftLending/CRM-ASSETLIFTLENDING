@@ -27,6 +27,8 @@ interface ContactSummary {
   phone?: string | null
   cell_phone?: string | null
   whatsapp?: string | null
+  city?: string | null
+  state?: string | null
   stage?: string | null
   lead_source?: string | null
   created_at?: string
@@ -312,16 +314,31 @@ export default function ConversationsClient({
   // against the open contact so the user edits the real message, not the token.
   const templates = channel === 'email' ? emailTemplates : smsTemplates
 
+  const agentName = 'Asset Lift Lending'
+
   function fill(text: string): string {
+    const first = contact?.first_name?.trim() ?? ''
+    const full = [first, contact?.last_name?.trim() ?? ''].filter(Boolean).join(' ')
     const vars: Record<string, string> = {
-      first_name: contact?.first_name ?? '',
+      // Mirrors buildMergeVars on the server: an empty name becomes "there", and
+      // an unknown tag is removed rather than shown, so the draft is what sends.
+      first_name: first || 'there',
+      contact_name: full || 'there',
+      full_name: full || 'there',
+      name: full || 'there',
       last_name: contact?.last_name ?? '',
-      contact_name: fmt.name(contact?.first_name, contact?.last_name),
       email: contact?.email ?? '',
-      phone: contact?.phone ?? '',
-      agent_name: 'Asset Lift Lending',
+      phone: contact?.phone ?? contact?.cell_phone ?? '',
+      city: contact?.city ?? '',
+      state: contact?.state ?? '',
+      agent_name: agentName,
+      company_name: agentName,
     }
-    return text.replace(/\{\{(\w+)\}\}/g, (whole, key) => vars[key] ?? whole)
+    return text
+      .replace(/\{\{\s*(\w+)\s*\}\}/g, (_whole, key) => vars[key] ?? '')
+      .replace(/([:,!?]) *([,.!?])/g, '$1')
+      .replace(/ {2,}/g, ' ')
+      .replace(/ +([,.!?;:])/g, '$1')
   }
 
   function applyTemplate(t: Template) {

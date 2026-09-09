@@ -30,5 +30,21 @@ export default async function PortalPage() {
     )
   }
 
-  return <PortalDashboard contact={contact} />
+  // The documents this lender asked for beyond the standard checklist.
+  const dealIds: string[] = (contact.deals ?? []).map((d: { id: string }) => d.id)
+  const documentRequirements: Record<string, Array<{ id: string; key: string; label: string; sort_order: number }>> = {}
+
+  if (dealIds.length) {
+    const { data: rows } = await supabase
+      .from('deal_document_requirements')
+      .select('id, deal_id, key, label, sort_order')
+      .in('deal_id', dealIds)
+      .order('sort_order')
+
+    for (const row of rows ?? []) {
+      (documentRequirements[row.deal_id] ??= []).push(row)
+    }
+  }
+
+  return <PortalDashboard contact={contact} documentRequirements={documentRequirements} />
 }

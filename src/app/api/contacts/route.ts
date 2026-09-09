@@ -15,7 +15,8 @@ export async function POST(req: NextRequest) {
     const fullName = String(body.name || '').trim()
     const [fallbackFirst, ...fallbackLastParts] = fullName.split(/\s+/).filter(Boolean)
     const firstName = String(body.first_name || fallbackFirst || '').trim()
-    const lastName = String(body.last_name || fallbackLastParts.join(' ') || 'Unknown').trim()
+    // A blank surname stays blank — "Simcha Unknown" reads worse than "Simcha".
+    const lastName = String(body.last_name || fallbackLastParts.join(' ') || '').trim()
     const afterRepairValue = toNumber(body.after_repair_value ?? body.arv)
     const experienceLevel = body.experience_level || body.experience || null
     const propertyAddress = body.property_address || body.address || null

@@ -16,7 +16,20 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
     supabase.from('tasks').select('*, profiles(full_name)').eq('deal_id', id).order('due_date'),
   ])
 
+  const { data: documentRequirements } = await supabase
+    .from('deal_document_requirements')
+    .select('id, key, label, sort_order')
+    .eq('deal_id', id)
+    .order('sort_order')
+
   if (!deal) notFound()
 
-  return <DealDetailClient deal={deal} docs={docs ?? []} tasks={tasks ?? []} />
+  return (
+    <DealDetailClient
+      deal={deal}
+      docs={docs ?? []}
+      tasks={tasks ?? []}
+      documentRequirements={documentRequirements ?? []}
+    />
+  )
 }

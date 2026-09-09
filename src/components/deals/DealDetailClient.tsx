@@ -5,16 +5,18 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   ChevronLeft, ChevronRight, CheckCircle, Circle, Upload,
-  DollarSign, FileText, Clock, AlertCircle, CreditCard, User
+  DollarSign, FileText, Clock, AlertCircle, CreditCard, User, Plus, X
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { fmt, STAGE_COLORS } from '@/lib/utils/format'
+import { buildChecklist, type DocumentRequirementRow } from '@/lib/documents/checklist'
+import AppraisalCardForm from '@/components/deals/AppraisalCardForm'
 
 type Deal = Record<string, any>
 type Doc  = Record<string, any>
 type Task = Record<string, any>
 
-interface Props { deal: Deal; docs: Doc[]; tasks: Task[] }
+interface Props { deal: Deal; docs: Doc[]; tasks: Task[]; documentRequirements?: DocumentRequirementRow[] }
 
 const STAGES = ['new_lead','pending_lead','dead_lead','in_progress','closed_deal'] as const
 
@@ -26,20 +28,53 @@ const LOAN_PROGRAMS = [
   { key: 'multifamily',label: 'Multifamily' },
 ] as const
 
-const DOC_TYPES = [
-  { key: 'government_id',          label: 'Government-Issued ID' },
-  { key: 'ssn',                    label: 'Social Security Number' },
-  { key: 'bank_statement',         label: 'Recent Bank Statement' },
-  { key: 'purchase_contract',      label: 'Signed Purchase Contract' },
-  { key: 'llc_documents',          label: 'LLC Documents' },
-  { key: 'scope_of_work',          label: 'Scope of Work' },
-  { key: 'reo_experience',         label: 'REO Experience Form' },
-  { key: 'title_company_info',     label: 'Title Company Contact & Quote' },
-  { key: 'insurance_agent_info',   label: 'Insurance Agent Contact & Quote' },
-  { key: 'appraisal_payment',      label: 'Appraisal Payment' },
-] as const
 
-export default function DealDetailClient({ deal, docs, tasks }: Props) {
+export default function DealDetailClient({ deal, docs, tasks, documentRequirements = [] }: Props) {
+  // Standard checklist plus anything requested on this particular deal.
+  const [requirements, setRequirements] = useState<DocumentRequirementRow[]>(documentRequirements)
+  const [newDocLabel, setNewDocLabel] = useState('')
+  const [payMode, setPayMode] = useState<'card' | 'link'>('card')
+  const [addingDoc, setAddingDoc] = useState(false)
+  const DOC_TYPES = buildChecklist(requirements)
+  const checklistKeys = new Set(DOC_TYPES.map(d => d.key))
+  const approvedDocCount = docs.filter(d => d.status === 'approved' && checklistKeys.has(d.doc_type)).length
+
+  async function addDocumentRequest() {
+    const label = newDocLabel.trim()
+    if (!label) return
+    setAddingDoc(true)
+    try {
+      const res = await fetch(`/api/deals/${deal.id}/document-requirements`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error ?? 'Could not add that document')
+      setRequirements(prev => [...prev.filter(r => r.key !== json.requirement.key), json.requirement])
+      setNewDocLabel('')
+      toast.success(`Added "${label}"`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not add that document')
+    } finally {
+      setAddingDoc(false)
+    }
+  }
+
+  async function removeDocumentRequest(key: string, label: string) {
+    const previous = requirements
+    setRequirements(prev => prev.filter(r => r.key !== key))
+    const res = await fetch(`/api/deals/${deal.id}/document-requirements?key=${encodeURIComponent(key)}`, {
+      method: 'DELETE',
+    })
+    if (!res.ok) {
+      setRequirements(previous)
+      toast.error('Could not remove that document')
+    } else {
+      toast.success(`Removed "${label}"`)
+    }
+  }
+
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
@@ -414,13 +449,13 @@ export default function DealDetailClient({ deal, docs, tasks }: Props) {
             <FileText size={16} className="text-gold-500" /> Document Checklist
           </h2>
           <p className="text-xs text-gray-400 mt-0.5">
-            {docs.filter(d => d.status === 'approved').length} / {DOC_TYPES.length} documents approved
+            {approvedDocCount} / {DOC_TYPES.length} documents approved
           </p>
           {/* Progress bar */}
           <div className="mt-3 bg-gray-100 rounded-full h-2">
             <div
               className="bg-gold-500 rounded-full h-2 transition-all"
-              style={{ width: `${(docs.filter(d => d.status === 'approved').length / DOC_TYPES.length) * 100}%` }}
+              style={{ width: `${DOC_TYPES.length ? (approvedDocCount / DOC_TYPES.length) * 100 : 0}%` }}
             />
           </div>
         </div>
@@ -443,7 +478,14 @@ export default function DealDetailClient({ deal, docs, tasks }: Props) {
                 </div>
 
                 <div className="flex-1">
-                  <p className={`text-sm font-medium ${approved ? 'text-green-700' : 'text-dark-800'}`}>{dt.label}</p>
+                  <p className={`text-sm font-medium ${approved ? 'text-green-700' : 'text-dark-800'}`}>
+                    {dt.label}
+                    {dt.custom && (
+                      <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-gold-600 bg-gold-50 px-1.5 py-0.5 rounded">
+                        Requested
+                      </span>
+                    )}
+                  </p>
                   {doc?.file_name && <p className="text-xs text-gray-400">{doc.file_name}</p>}
                   {doc?.notes && <p className="text-xs text-gray-400 italic">{doc.notes}</p>}
                   {hasInlineInfo && (
@@ -507,10 +549,36 @@ export default function DealDetailClient({ deal, docs, tasks }: Props) {
                     }} />
                   </label>
                 )}
+
+                {dt.custom && (
+                  <button type="button" onClick={() => removeDocumentRequest(dt.key, dt.label)}
+                    title={`Stop requesting ${dt.label}`}
+                    className="flex items-center justify-center w-7 h-7 rounded-xl border border-gray-200 text-gray-400 hover:border-red-300 hover:text-red-600 transition-base">
+                    <X size={13} />
+                  </button>
+                )}
                 </div>
               </div>
             )
           })}
+
+          <div className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center">
+            <div className="w-6 h-6 rounded-full border border-dashed border-gray-300 flex items-center justify-center flex-shrink-0 text-gray-300">
+              <Plus size={13} />
+            </div>
+            <input
+              value={newDocLabel}
+              onChange={e => setNewDocLabel(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addDocumentRequest() } }}
+              placeholder="Request another document — e.g. 2023 Tax Return"
+              maxLength={80}
+              className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gold-500"
+            />
+            <button type="button" onClick={addDocumentRequest} disabled={!newDocLabel.trim() || addingDoc}
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-gold-500 hover:bg-gold-400 disabled:opacity-50 text-dark-800 font-bold px-4 py-2 text-xs">
+              <Plus size={13} /> {addingDoc ? 'Adding…' : 'Add document'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -529,29 +597,60 @@ export default function DealDetailClient({ deal, docs, tasks }: Props) {
           </div>
         ) : (
           <div className="space-y-4">
-            <p className="text-sm text-gray-500">Collect the appraisal fee from the borrower via Stripe payment link.</p>
-            <div className="flex items-center gap-3">
-              <label className="text-sm font-medium text-gray-700">Amount:</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-                <input
-                  type="number"
-                  value={appraisalAmount}
-                  onChange={e => setAppraisalAmount(Number(e.target.value))}
-                  className="w-28 border border-gray-200 rounded-xl pl-7 pr-3 py-2 text-sm focus:outline-none focus:border-gold-500"
-                  min={550} max={850}
-                />
-              </div>
-              <span className="text-xs text-gray-400">(typically $550 – $850)</span>
+            {/* Take the card over the phone, or let the borrower pay themselves. */}
+            <div className="flex gap-1 bg-gray-50 rounded-xl p-1 w-fit">
+              {([
+                { key: 'card', label: 'Enter card details' },
+                { key: 'link', label: 'Send payment link' },
+              ] as const).map(tab => (
+                <button key={tab.key} type="button" onClick={() => setPayMode(tab.key)}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-base
+                    ${payMode === tab.key ? 'bg-white text-dark-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                  {tab.label}
+                </button>
+              ))}
             </div>
-            <button onClick={initiateAppraisalPayment} disabled={paymentLoading}
-              className="flex items-center gap-2 bg-gold-500 hover:bg-gold-400 disabled:opacity-50 text-dark-800 font-bold px-5 py-2.5 rounded-xl text-sm">
-              <DollarSign size={15} />
-              {paymentLoading ? 'Creating link…' : 'Send Payment Link to Borrower'}
-            </button>
-            <p className="text-xs text-gray-400 flex items-center gap-1">
-              <AlertCircle size={11} /> A Stripe checkout link will be generated and copied to your clipboard to send to the borrower.
-            </p>
+
+            {payMode === 'card' ? (
+              <AppraisalCardForm
+                dealId={deal.id}
+                defaultAmount={appraisalAmount}
+                billingDefaults={{
+                  name: fmt.name(deal.contacts?.first_name, deal.contacts?.last_name),
+                  line1: deal.contacts?.address ?? '',
+                  city: deal.contacts?.city ?? '',
+                  state: deal.contacts?.state ?? '',
+                  postal_code: deal.contacts?.zip ?? '',
+                }}
+                onPaid={() => router.refresh()}
+              />
+            ) : (
+              <>
+                <p className="text-sm text-gray-500">Send the borrower a Stripe checkout link to pay themselves.</p>
+                <div className="flex items-center gap-3">
+                  <label className="text-sm font-medium text-gray-700">Amount:</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                    <input
+                      type="number"
+                      value={appraisalAmount}
+                      onChange={e => setAppraisalAmount(Number(e.target.value))}
+                      className="w-28 border border-gray-200 rounded-xl pl-7 pr-3 py-2 text-sm focus:outline-none focus:border-gold-500"
+                      min={550} max={850}
+                    />
+                  </div>
+                  <span className="text-xs text-gray-400">(typically $550 – $850)</span>
+                </div>
+                <button onClick={initiateAppraisalPayment} disabled={paymentLoading}
+                  className="flex items-center gap-2 bg-gold-500 hover:bg-gold-400 disabled:opacity-50 text-dark-800 font-bold px-5 py-2.5 rounded-xl text-sm">
+                  <DollarSign size={15} />
+                  {paymentLoading ? 'Creating link…' : 'Send Payment Link to Borrower'}
+                </button>
+                <p className="text-xs text-gray-400 flex items-center gap-1">
+                  <AlertCircle size={11} /> A Stripe checkout link will be generated and copied to your clipboard to send to the borrower.
+                </p>
+              </>
+            )}
           </div>
         )}
       </div>

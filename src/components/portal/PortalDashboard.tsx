@@ -9,21 +9,10 @@ import {
 import toast from 'react-hot-toast'
 import { fmt, STAGE_COLORS } from '@/lib/utils/format'
 import { createBrowserClient } from '@/lib/supabase/client'
+import { buildChecklist, type DocumentRequirementRow } from '@/lib/documents/checklist'
 
 type Contact = Record<string, any>
 
-const DOC_TYPES = [
-  { key: 'government_id',        label: 'Government-Issued ID' },
-  { key: 'ssn',                  label: 'Social Security Number' },
-  { key: 'bank_statement',       label: 'Recent Bank Statement' },
-  { key: 'purchase_contract',    label: 'Signed Purchase Contract' },
-  { key: 'llc_documents',        label: 'LLC Documents' },
-  { key: 'scope_of_work',        label: 'Scope of Work' },
-  { key: 'reo_experience',       label: 'REO Experience Form' },
-  { key: 'title_company_info',   label: 'Title Company Contact & Quote' },
-  { key: 'insurance_agent_info', label: 'Insurance Agent Contact & Quote' },
-  { key: 'appraisal_payment',    label: 'Appraisal Payment' },
-] as const
 
 const STAGE_STEPS = [
   { key: 'new_lead',      label: 'Application Received' },
@@ -33,7 +22,14 @@ const STAGE_STEPS = [
   { key: 'closed_deal',   label: 'Closed Deal' },
 ] as const
 
-export default function PortalDashboard({ contact }: { contact: Contact }) {
+export default function PortalDashboard({
+  contact,
+  documentRequirements = {},
+}: {
+  contact: Contact
+  // Extra documents the lender asked for, keyed by deal id.
+  documentRequirements?: Record<string, DocumentRequirementRow[]>
+}) {
   const router    = useRouter()
   const supabase  = createBrowserClient()
   const [uploading, setUploading] = useState<string | null>(null)
@@ -42,6 +38,7 @@ export default function PortalDashboard({ contact }: { contact: Contact }) {
 
   const deals: any[] = contact.deals ?? []
   const deal  = deals[selectedDeal]
+  const DOC_TYPES = buildChecklist(deal ? documentRequirements[deal.id] ?? [] : [])
   const docs: any[] = deal?.documents ?? []
   const docMap = Object.fromEntries(docs.map((d: any) => [d.doc_type, d]))
 

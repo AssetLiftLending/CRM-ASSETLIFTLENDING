@@ -29,5 +29,20 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Cards keyed in by staff produce a payment intent rather than a checkout session.
+  if (event.type === 'payment_intent.succeeded') {
+    const intent = event.data.object as Stripe.PaymentIntent
+    const dealId = intent.metadata?.deal_id
+
+    if (dealId && intent.metadata?.type === 'appraisal') {
+      const supabase = createAdminClient()
+      await supabase.from('deals').update({
+        appraisal_paid:    true,
+        appraisal_paid_at: new Date().toISOString(),
+        appraisal_amount:  intent.amount_received / 100,
+      }).eq('id', dealId)
+    }
+  }
+
   return NextResponse.json({ received: true })
 }

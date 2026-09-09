@@ -18,7 +18,8 @@ export function canSendCommunications(role?: string | null) {
 
 /** Resolves the signed-in staff member and their organization for API routes. */
 export async function getStaffContext(): Promise<StaffContext | null> {
-  const { data: { user } } = await createClient().auth.getUser()
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
   const { data: profile } = await createAdminClient()

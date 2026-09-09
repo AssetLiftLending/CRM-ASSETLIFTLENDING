@@ -186,8 +186,9 @@ async function uploadTermSheet(admin: any, dealId: string, buffer: Buffer, conte
 }
 
 // POST - generates or uploads a term sheet, saves terms, publishes to the portal, and emails borrower/broker.
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createClient()
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -226,7 +227,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const { data: deal, error: dealError } = await admin
     .from('deals')
     .select('*, contacts(id, first_name, last_name, email, phone, organization_id), profiles!broker_id(email, full_name)')
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
   if (dealError || !deal) return NextResponse.json({ error: 'Deal not found' }, { status: 404 })
@@ -245,7 +246,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   let uploaded: { path: string; publicUrl: string }
   try {
-    uploaded = await uploadTermSheet(admin, params.id, fileBuffer, contentType)
+    uploaded = await uploadTermSheet(admin, id, fileBuffer, contentType)
   } catch (error: any) {
     return NextResponse.json({ error: error.message ?? 'Term sheet upload failed' }, { status: 500 })
   }
@@ -275,13 +276,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (parsed !== null) updateData[dbKey] = kind === 'int' ? Math.round(parsed) : parsed
   }
 
-  const { error: updateError } = await admin.from('deals').update(updateData).eq('id', params.id)
+  const { error: updateError } = await admin.from('deals').update(updateData).eq('id', id)
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
 
   if (contact?.id) {
     await admin.from('documents').upsert({
       name: fileName,
-      deal_id: params.id,
+      deal_id: id,
       contact_id: contact.id,
       organization_id: organizationId,
       doc_type: 'term_sheet',

@@ -78,6 +78,9 @@ Complete step-by-step setup from zero to live at **crm.assetliftlending.com**.
    SENDGRID_API_KEY=SG.xxxxxx
    SENDGRID_FROM_EMAIL=info@assetliftlending.com
    SENDGRID_FROM_NAME=Asset Lift Lending
+   SENDGRID_INBOUND_WEBHOOK_SECRET=<random-secret>
+   SENDGRID_EVENT_WEBHOOK_SECRET=<random-secret>
+   CRON_SECRET=<random-secret-at-least-16-characters>
    ```
 
 ---

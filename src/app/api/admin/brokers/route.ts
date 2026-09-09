@@ -6,7 +6,7 @@ const ADMIN_ROLES = ['platform_admin', 'organization_admin', 'owner']
 
 // GET — list all broker profiles
 export async function GET() {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -39,7 +39,7 @@ export async function GET() {
 
 // PATCH — approve or deactivate a broker
 export async function PATCH(req: NextRequest) {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

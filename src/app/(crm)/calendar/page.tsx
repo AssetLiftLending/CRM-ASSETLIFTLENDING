@@ -2,7 +2,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import CalendarClient from '@/components/calendar/CalendarClient'
 
 export default async function CalendarPage() {
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
 
   const [{ data: appointments }, { data: tasks }] = await Promise.all([
     supabase

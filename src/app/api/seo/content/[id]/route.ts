@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createClient()
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -16,17 +17,18 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (body.scheduled_for) updateData.scheduled_for = body.scheduled_for
   if (body.status === 'published') updateData.published_at = new Date().toISOString()
 
-  const { data, error } = await admin.from('generated_content').update(updateData).eq('id', params.id).select().single()
+  const { data, error } = await admin.from('generated_content').update(updateData).eq('id', id).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ content: data })
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createClient()
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const admin = createAdminClient()
-  await admin.from('generated_content').update({ status: 'archived' }).eq('id', params.id)
+  await admin.from('generated_content').update({ status: 'archived' }).eq('id', id)
   return NextResponse.json({ success: true })
 }

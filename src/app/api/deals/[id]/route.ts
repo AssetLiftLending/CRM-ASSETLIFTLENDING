@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { triggerAutomations } from '@/lib/automations/engine'
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params
     const body    = await req.json()
     const supabase = createAdminClient()
 
@@ -10,13 +12,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const { data: currentDeal } = await supabase
       .from('deals')
       .select('stage, contact_id')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     const { data, error } = await supabase
       .from('deals')
       .update({ ...body, updated_at: new Date().toISOString() })
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
       .single()
 
@@ -24,30 +26,22 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
     // Fire stage_changed automation if stage changed
     if (body.stage && currentDeal && body.stage !== currentDeal.stage) {
-      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/automations/trigger`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          trigger_type: 'stage_changed',
-          contact_id: currentDeal.contact_id,
-          deal_id: params.id,
-          from_stage: currentDeal.stage,
-          to_stage: body.stage,
-          trigger_config: { to_stage: body.stage },
-        }),
-      }).catch(() => {})
+      await triggerAutomations(supabase, {
+        trigger_type: 'stage_changed',
+        contact_id: currentDeal.contact_id,
+        deal_id: id,
+        trigger_config: { to_stage: body.stage },
+        event_key: `stage:${id}:${body.stage}:${data.updated_at}`,
+      })
 
       // Special: deal_funded / closed deal
       if (body.stage === 'closed_deal' || body.stage === 'funded') {
-        fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/automations/trigger`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            trigger_type: 'deal_funded',
-            contact_id: currentDeal.contact_id,
-            deal_id: params.id,
-          }),
-        }).catch(() => {})
+        await triggerAutomations(supabase, {
+          trigger_type: 'deal_funded',
+          contact_id: currentDeal.contact_id,
+          deal_id: id,
+          event_key: `funded:${id}:${data.updated_at}`,
+        })
       }
     }
 
@@ -58,7 +52,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('deals')
@@ -67,7 +62,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       contacts(*),
       profiles:assigned_to(id, full_name)
     `)
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 404 })

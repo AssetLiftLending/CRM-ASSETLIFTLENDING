@@ -6,7 +6,7 @@ const ORG_ADMIN_ROLES = ['platform_admin', 'organization_admin', 'owner']
 const ORG_USER_ROLES = ['loan_officer', 'processor', 'marketing', 'read_only', 'broker', 'borrower']
 
 export async function GET() {
-  const authClient = createClient()
+  const authClient = await createClient()
   const { data: { user } } = await authClient.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -37,7 +37,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const authClient = createClient()
+  const authClient = await createClient()
   const { data: { user } } = await authClient.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -171,7 +171,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const authClient = createClient()
+  const authClient = await createClient()
   const { data: { user } } = await authClient.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

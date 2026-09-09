@@ -47,7 +47,10 @@ export async function sendEmail({
       subscriptionTracking: { enable: true },
     },
   }
-  return getSendGridClient().send(msg)
+  const [response] = await getSendGridClient().send(msg)
+  const rawMessageId = response.headers['x-message-id']
+  const messageId = Array.isArray(rawMessageId) ? rawMessageId[0] : rawMessageId
+  return { messageId: messageId ? String(messageId) : null }
 }
 
 // ── BULK CAMPAIGN ──────────────────────────────────────────

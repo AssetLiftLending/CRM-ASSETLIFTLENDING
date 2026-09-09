@@ -4,7 +4,7 @@ import PipelineBoard from '@/components/pipeline/PipelineBoard'
 export const dynamic = 'force-dynamic'
 
 export default async function PipelinePage() {
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
 
   const [{ data: deals }, { data: profiles }, { data: stages }] = await Promise.all([
     supabase

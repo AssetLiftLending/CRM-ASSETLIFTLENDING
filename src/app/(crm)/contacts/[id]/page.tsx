@@ -2,36 +2,37 @@ import { createServerClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import ContactDetailClient from '@/components/contacts/ContactDetailClient'
 
-export default async function ContactDetailPage({ params }: { params: { id: string } }) {
-  const supabase = createServerClient()
+export default async function ContactDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const supabase = await createServerClient()
 
   const [{ data: contact }, { data: deals }, { data: comms }, { data: tasks }, { data: docs }] =
     await Promise.all([
       supabase
         .from('contacts')
         .select('*, profiles:assigned_to(full_name)')
-        .eq('id', params.id)
+        .eq('id', id)
         .single(),
       supabase
         .from('deals')
         .select('*, profiles:assigned_to(full_name)')
-        .eq('contact_id', params.id)
+        .eq('contact_id', id)
         .order('created_at', { ascending: false }),
       supabase
         .from('communications')
         .select('*')
-        .eq('contact_id', params.id)
+        .eq('contact_id', id)
         .order('created_at', { ascending: false })
         .limit(50),
       supabase
         .from('tasks')
         .select('*, profiles(full_name)')
-        .eq('contact_id', params.id)
+        .eq('contact_id', id)
         .order('due_date', { ascending: true }),
       supabase
         .from('documents')
         .select('*')
-        .eq('contact_id', params.id)
+        .eq('contact_id', id)
         .order('created_at', { ascending: false }),
     ])
 

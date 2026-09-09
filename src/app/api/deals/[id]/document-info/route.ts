@@ -16,8 +16,9 @@ function contactSummary(companyName: string | null, contactName: string | null, 
   ].filter(Boolean).join('\n') || null
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const authClient = createClient()
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const authClient = await createClient()
   const { data: { user } } = await authClient.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -36,7 +37,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const { data: deal } = await admin
     .from('deals')
     .select('id, contact_id')
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
   if (!deal) return NextResponse.json({ error: 'Deal not found' }, { status: 404 })
@@ -66,7 +67,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const { error: dealError } = await admin
     .from('deals')
     .update(dealUpdate)
-    .eq('id', params.id)
+    .eq('id', id)
 
   if (dealError) return NextResponse.json({ error: dealError.message }, { status: 500 })
 

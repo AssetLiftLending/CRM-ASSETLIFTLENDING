@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import PortalDashboard from '@/components/portal/PortalDashboard'
 
 export default async function PortalPage() {
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) redirect('/portal/login')

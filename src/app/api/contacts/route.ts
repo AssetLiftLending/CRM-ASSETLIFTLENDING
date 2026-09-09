@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
-import { sendSms } from '@/lib/twilio/client'
-import { sendEmail, interpolateEmail } from '@/lib/sendgrid/client'
+import { triggerAutomations } from '@/lib/automations/engine'
 
 export async function POST(req: NextRequest) {
   try {
@@ -85,14 +84,23 @@ export async function POST(req: NextRequest) {
       deal = createdDeal
     }
 
-    // Trigger lead_created automations (fire and forget)
-    fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/automations/trigger`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ trigger_type: 'lead_created', contact_id: contact.id }),
-    }).catch(() => {})
+    // The lead is already saved. An automation failure (e.g. Twilio or SendGrid
+    // not configured) must not fail the request — a 500 here makes the caller
+    // retry and create duplicate leads.
+    let automation_error: string | null = null
+    try {
+      await triggerAutomations(supabase, {
+        trigger_type: 'lead_created',
+        contact_id: contact.id,
+        deal_id: deal?.id,
+        event_key: `lead-created:${contact.id}`,
+      })
+    } catch (err) {
+      automation_error = err instanceof Error ? err.message : 'Automation failed'
+      console.error('POST /api/contacts: automations failed for contact', contact.id, err)
+    }
 
-    return NextResponse.json({ ...contact, deal })
+    return NextResponse.json({ ...contact, deal, automation_error })
   } catch (err) {
     console.error('POST /api/contacts', err)
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed' }, { status: 500 })

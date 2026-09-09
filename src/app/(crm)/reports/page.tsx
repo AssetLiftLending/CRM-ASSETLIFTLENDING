@@ -2,7 +2,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import ReportsClient from '@/components/reports/ReportsClient'
 
 export default async function ReportsPage() {
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
 
   // All deals with stage + dates
   const { data: deals } = await supabase

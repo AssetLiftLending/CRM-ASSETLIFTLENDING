@@ -4,10 +4,11 @@ import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { Upload, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { parseCsv } from '@/lib/import/csv'
 
 export default function AdminPage() {
   const [importing, setImporting]   = useState(false)
-  const [result, setResult]         = useState<{ imported: number; skipped: number; errors: number; total: number } | null>(null)
+  const [result, setResult]         = useState<{ imported: number; updated?: number; skipped: number; errors: number; total: number; problems?: string[] } | null>(null)
   const [preview, setPreview]       = useState<Record<string, string>[] | null>(null)
   const [pasteData, setPasteData]   = useState('')
   const [mode, setMode]             = useState<'csv' | 'paste'>('csv')
@@ -18,7 +19,7 @@ export default function AdminPage() {
     const reader = new FileReader()
     reader.onload = (e) => {
       const text = e.target?.result as string
-      const rows  = parseCSV(text)
+      const rows  = parseCsv(text)
       setPreview(rows.slice(0, 5))
       handleImport(rows)
     }
@@ -41,12 +42,16 @@ export default function AdminPage() {
     const data = await res.json()
     setResult(data)
     setImporting(false)
-    if (res.ok) toast.success(`Imported ${data.imported} contacts!`)
-    else toast.error('Import failed')
+    if (res.ok) {
+      const repaired = data.updated ? `, ${data.updated} name${data.updated === 1 ? '' : 's'} filled in` : ''
+      toast.success(`Imported ${data.imported} contacts${repaired}`)
+    } else {
+      toast.error(data?.error ?? 'Import failed')
+    }
   }
 
   async function handlePasteImport() {
-    const rows = parseCSV(pasteData)
+    const rows = parseCsv(pasteData)
     if (!rows.length) return toast.error('No data to import')
     await handleImport(rows)
   }
@@ -194,16 +199,4 @@ export default function AdminPage() {
       </div>
     </div>
   )
-}
-
-function parseCSV(text: string): Record<string, string>[] {
-  const lines   = text.trim().split('\n')
-  if (lines.length < 2) return []
-  const headers = lines[0].split(',').map((h) => h.trim().replace(/^"|"$/g, ''))
-  return lines.slice(1).map((line) => {
-    const vals: Record<string, string> = {}
-    const cols = line.split(',')
-    headers.forEach((h, i) => { vals[h] = (cols[i] ?? '').trim().replace(/^"|"$/g, '') })
-    return vals
-  }).filter((r) => Object.values(r).some(Boolean))
 }

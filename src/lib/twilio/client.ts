@@ -1,6 +1,7 @@
 import twilio from 'twilio'
 import { toE164 } from '@/lib/twilio/phone'
 import { appUrl } from '@/lib/utils/app-url'
+import { renderTemplate } from '@/lib/communications/merge'
 
 function getTwilioClient() {
   const accountSid = process.env.TWILIO_ACCOUNT_SID?.trim()
@@ -163,7 +164,7 @@ export async function missedCallAutoText(to: string, agentName = 'Asset Lift Len
 // ── TEMPLATE INTERPOLATION ────────────────────────────────
 
 export function interpolate(template: string, vars: Record<string, string>) {
-  return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, key) => vars[key] ?? `{{${key}}}`)
+  return renderTemplate(template, vars)
 }
 
 // ── DIAGNOSTICS ────────────────────────────────────────────

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
-import { executeAutomationAction, scheduledActionContext } from '@/lib/automations/engine'
+import { executeAutomationAction, resolveContext, scheduledActionContext } from '@/lib/automations/engine'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,7 +18,8 @@ export async function GET(req: NextRequest) {
   let failed = 0
   for (const row of actions ?? []) {
     try {
-      const result = await executeAutomationAction(supabase, row.action, scheduledActionContext(row))
+      const context = await resolveContext(supabase, scheduledActionContext(row))
+      const result = await executeAutomationAction(supabase, row.action, context)
       await supabase.from('scheduled_automation_actions').update({
         status: 'completed',
         processed_at: new Date().toISOString(),

@@ -113,6 +113,7 @@ production.
    SENDGRID_FROM_NAME=Asset Lift Lending
    SENDGRID_WEBHOOK_PUBLIC_KEY=base64-key-from-step-4
    SENDGRID_INBOUND_SECRET=your-long-random-string
+   CRON_SECRET=<random-secret-at-least-16-characters>
    ```
 7. **Verify it works**: sign in to the CRM → **Settings → Email**. The page shows a live
    connection check and a **Send test** button. A green banner plus a received test email

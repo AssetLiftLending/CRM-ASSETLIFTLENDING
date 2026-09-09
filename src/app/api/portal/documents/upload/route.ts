@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, createAdminClient } from '@/lib/supabase/server'
+import { triggerAutomations } from '@/lib/automations/engine'
 
 export async function POST(req: NextRequest) {
   try {
     // Verify portal user
-    const supabaseAuth = createServerClient()
+    const supabaseAuth = await createServerClient()
     const { data: { user } } = await supabaseAuth.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -118,16 +119,12 @@ export async function POST(req: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    // Notify lender
-    await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/automations/trigger`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        trigger_type: 'document_uploaded',
-        contact_id:   contactId,
-        metadata:     { doc_type: docType, file_name: file.name },
-      }),
-    }).catch(() => {})
+    await triggerAutomations(supabase, {
+      trigger_type: 'document_uploaded',
+      contact_id: contactId,
+      deal_id: dealId,
+      event_key: `document:${data.id}`,
+    })
 
     return NextResponse.json(data)
   } catch (err) {

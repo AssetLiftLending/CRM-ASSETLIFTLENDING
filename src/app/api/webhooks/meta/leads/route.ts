@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { parseMetaLead } from '@/lib/ads/meta'
+import { triggerAutomations } from '@/lib/automations/engine'
 
 // Meta Lead Ads webhook — instant lead ingestion
 export async function GET(req: NextRequest) {
@@ -41,12 +42,17 @@ export async function POST(req: NextRequest) {
           lead_source_detail: { meta_lead_id: leadId, form_id: formId, ad_id: adId, campaign_id: campaignId },
         })
 
-        // Upsert contact (avoid dupes)
-        const { data: existing } = await supabase
-          .from('contacts')
-          .select('id')
-          .eq('email', contact.email)
-          .single()
+        // Upsert contact (avoid dupes). maybeSingle() so that "no match" is not
+        // an error, and skip the lookup entirely when Meta gave us no email —
+        // .eq('email', undefined) would match arbitrary rows.
+        const { data: existing } = contact.email
+          ? await supabase
+              .from('contacts')
+              .select('id')
+              .eq('email', contact.email)
+              .limit(1)
+              .maybeSingle()
+          : { data: null }
 
         let contactId = existing?.id
         if (!existing && (contact.email || contact.phone)) {
@@ -66,12 +72,17 @@ export async function POST(req: NextRequest) {
             lead_source_detail: contact.lead_source_detail,
           })
 
-          // Fire automation
-          await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/automations/trigger`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ trigger_type: 'lead_created', contact_id: contactId }),
-          })
+          // Never let an automation failure fail the webhook: Meta retries on a
+          // non-2xx response, which would re-ingest the same lead repeatedly.
+          try {
+            await triggerAutomations(supabase, {
+              trigger_type: 'lead_created',
+              contact_id: contactId,
+              event_key: `meta-lead:${leadId}`,
+            })
+          } catch (err) {
+            console.error('Meta webhook: automations failed for contact', contactId, err)
+          }
         }
       }
     }

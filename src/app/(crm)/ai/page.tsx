@@ -1,8 +1,9 @@
 import { createServerClient } from '@/lib/supabase/server'
 import AIClient from '@/components/ai/AIClient'
 
-export default async function AIPage({ searchParams }: { searchParams: { tab?: string } }) {
-  const supabase = createServerClient()
+export default async function AIPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+  const resolvedSearchParams = await searchParams
+  const supabase = await createServerClient()
 
   const { data: contacts } = await supabase
     .from('contacts')
@@ -24,7 +25,7 @@ export default async function AIPage({ searchParams }: { searchParams: { tab?: s
     <AIClient
       contacts={contacts ?? []}
       adDrafts={adDrafts ?? []}
-      defaultTab={searchParams.tab ?? 'followup'}
+      defaultTab={resolvedSearchParams.tab ?? 'followup'}
     />
   )
 }

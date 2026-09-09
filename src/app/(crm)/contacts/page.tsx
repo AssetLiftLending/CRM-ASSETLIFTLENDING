@@ -4,9 +4,10 @@ import ContactsClient from '@/components/contacts/ContactsClient'
 export default async function ContactsPage({
   searchParams,
 }: {
-  searchParams: { q?: string; stage?: string; source?: string; new?: string }
+  searchParams: Promise<{ q?: string; stage?: string; source?: string; new?: string }>
 }) {
-  const supabase = createServerClient()
+  const resolvedSearchParams = await searchParams
+  const supabase = await createServerClient()
 
   let query = supabase
     .from('contacts')
@@ -18,11 +19,11 @@ export default async function ContactsPage({
     .order('created_at', { ascending: false })
     .limit(100)
 
-  if (searchParams.q) {
-    query = query.or(`first_name.ilike.%${searchParams.q}%,last_name.ilike.%${searchParams.q}%,email.ilike.%${searchParams.q}%,phone.ilike.%${searchParams.q}%`)
+  if (resolvedSearchParams.q) {
+    query = query.or(`first_name.ilike.%${resolvedSearchParams.q}%,last_name.ilike.%${resolvedSearchParams.q}%,email.ilike.%${resolvedSearchParams.q}%,phone.ilike.%${resolvedSearchParams.q}%`)
   }
-  if (searchParams.source) {
-    query = query.eq('lead_source', searchParams.source)
+  if (resolvedSearchParams.source) {
+    query = query.eq('lead_source', resolvedSearchParams.source)
   }
 
   const { data: contacts } = await query
@@ -32,7 +33,7 @@ export default async function ContactsPage({
     <ContactsClient
       contacts={contacts ?? []}
       profiles={profiles ?? []}
-      defaultNew={!!searchParams.new}
+      defaultNew={!!resolvedSearchParams.new}
     />
   )
 }

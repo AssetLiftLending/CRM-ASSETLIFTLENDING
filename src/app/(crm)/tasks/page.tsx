@@ -2,7 +2,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import TasksClient from '@/components/tasks/TasksClient'
 
 export default async function TasksPage() {
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
   const { data: { session } } = await supabase.auth.getSession()
 
   const { data: tasks } = await supabase

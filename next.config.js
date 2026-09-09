@@ -1,11 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ['assetliftlending.com', 'localhost'],
+    remotePatterns: [
+      { protocol: 'https', hostname: 'assetliftlending.com' },
+      { protocol: 'http', hostname: 'localhost' },
+    ],
   },
-  experimental: {
-    serverComponentsExternalPackages: ['twilio', '@sendgrid/mail'],
-  },
+  serverExternalPackages: ['twilio', '@sendgrid/mail'],
 }
 
 module.exports = nextConfig

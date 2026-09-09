@@ -6,7 +6,7 @@ export const metadata = { title: 'SEO & Marketing Hub' }
 const ADMIN_ROLES = ['platform_admin', 'organization_admin', 'owner']
 
 export default async function SEOHubPage() {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 

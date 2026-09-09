@@ -91,7 +91,7 @@ export default function NewContactModal({
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
           <div>
             <h2 className="text-lg font-bold text-dark-800">New Lead</h2>
-            <p className="text-sm text-gray-500 mt-0.5">Creates a contact, deal, and portal-ready file.</p>
+            <p className="text-sm text-gray-500 mt-0.5">Name, phone and email is enough to start — everything else can wait.</p>
           </div>
           <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl">
             <X size={18} />
@@ -99,7 +99,7 @@ export default function NewContactModal({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          <Section number="1" title="Borrower">
+          <Section number="1" title="Borrower" hint="Name, phone and email are all that is required">
             <div className="grid grid-cols-2 gap-4">
               <Field label="First Name *" value={form.first_name} onChange={set('first_name')} required />
               <Field label="Last Name *" value={form.last_name} onChange={set('last_name')} required />
@@ -125,7 +125,7 @@ export default function NewContactModal({
             </div>
           </Section>
 
-          <Section number="3" title="Deal">
+          <Section number="3" title="Deal" hint="All optional — add what you have, fill in the rest later">
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">Loan Program</label>
@@ -146,8 +146,8 @@ export default function NewContactModal({
                 </div>
               </div>
 
-              <Field label="Property Address *" value={form.property_address} onChange={set('property_address')} required />
-              <Field label="Loan Amount *" value={form.loan_amount} onChange={set('loan_amount')} type="number" placeholder="$0" required />
+              <Field label="Property Address" value={form.property_address} onChange={set('property_address')} placeholder="Optional — can be added later" />
+              <Field label="Loan Amount" value={form.loan_amount} onChange={set('loan_amount')} type="number" placeholder="Optional" />
               <Field label="Property City" value={form.property_city} onChange={set('property_city')} />
               <Field label="Property State" value={form.property_state} onChange={set('property_state')} />
               <Field label="Property ZIP" value={form.property_zip} onChange={set('property_zip')} />
@@ -233,13 +233,18 @@ export default function NewContactModal({
   )
 }
 
-function Section({ number, title, children }: { number: string; title: string; children: React.ReactNode }) {
+function Section({ number, title, hint, children }: {
+  number: string; title: string; hint?: string; children: React.ReactNode
+}) {
   return (
     <div>
-      <h3 className="text-sm font-bold text-dark-800 mb-4 flex items-center gap-2">
-        <span className="w-6 h-6 bg-gold-500 text-dark-800 rounded-full flex items-center justify-center text-xs font-black">{number}</span>
-        {title}
-      </h3>
+      <div className="mb-4">
+        <h3 className="text-sm font-bold text-dark-800 flex items-center gap-2">
+          <span className="w-6 h-6 bg-gold-500 text-dark-800 rounded-full flex items-center justify-center text-xs font-black">{number}</span>
+          {title}
+        </h3>
+        {hint && <p className="text-xs text-gray-400 mt-1 ml-8">{hint}</p>}
+      </div>
       {children}
     </div>
   )

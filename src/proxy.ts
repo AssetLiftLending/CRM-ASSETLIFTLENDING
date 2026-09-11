@@ -17,6 +17,11 @@ const PUBLIC_PATHS = [
   '/api/broker/auth',
   '/api/webhooks',
   '/api/cron',
+  // TwiML Twilio fetches mid-call. It carries no session, and each route checks
+  // X-Twilio-Signature itself. /api/calls (placing a call) stays staff-only.
+  '/api/calls/twiml',
+  '/api/calls/whisper',
+  '/api/calls/voicemail-twiml',
 ]
 
 // Exact match or a real path segment boundary, so "/loginauthorized" does not
